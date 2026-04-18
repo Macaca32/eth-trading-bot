@@ -23,8 +23,10 @@ import argparse
 import asyncio
 import signal
 import sys
+import time
 from typing import Optional
 
+import pandas as pd
 from loguru import logger
 
 from config import BotConfig, load_config, TradingMode
@@ -72,6 +74,7 @@ class TradingBot:
         self._config = config
         self._running = False
         self._shutdown_event = asyncio.Event()
+        self._start_time: float = 0.0
 
         # Core components (initialized in start())
         self._db: Optional[Database] = None
@@ -125,6 +128,7 @@ class TradingBot:
 
         # Start main loop
         self._running = True
+        self._start_time = time.time()
         logger.info("Bot started successfully — entering main loop")
 
         try:
@@ -406,6 +410,18 @@ def parse_args() -> argparse.Namespace:
         "--pairs", type=str, default=None,
         help="Comma-separated list of pairs to trade (e.g. 'BTC,ETH,SOL')",
     )
+    parser.add_argument(
+        "--api", action="store_true",
+        help="Start the API server alongside the bot (port 3003)",
+    )
+    parser.add_argument(
+        "--api-only", action="store_true",
+        help="Start only the API server without the bot (port 3003)",
+    )
+    parser.add_argument(
+        "--port", type=int, default=3003,
+        help="Port for the API server (default: 3003)",
+    )
     return parser.parse_args()
 
 
@@ -435,6 +451,12 @@ async def async_main() -> None:
 
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
+
+    if args.api_only:
+        # API server only (no bot)
+        from api_server import run_api_server
+        run_api_server(port=args.port)
+        return
 
     if args.optimize:
         # Optimization-only mode
@@ -481,6 +503,22 @@ async def async_main() -> None:
 
         await data_manager.stop()
         await client.close()
+    elif args.api:
+        # Bot + API server mode
+        import threading
+        from api_server import run_api_server
+
+        # Start API server in a separate thread
+        api_thread = threading.Thread(
+            target=run_api_server,
+            kwargs={"port": args.port},
+            daemon=True,
+        )
+        api_thread.start()
+        logger.info("API server starting on port {} (bot + API mode)", args.port)
+
+        # Start the bot
+        await bot.start()
     else:
         # Normal bot mode
         await bot.start()

@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  # ──────────────────────────────────────────────
+  # Python Trading Bot + API Server
+  # ──────────────────────────────────────────────
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: eth-bot
+    restart: unless-stopped
+    env_file:
+      - ./bot/.env
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - trading-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ──────────────────────────────────────────────
+  # Next.js Dashboard Frontend
+  # ──────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eth-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://bot:3003
+    depends_on:
+      - bot
+    networks:
+      - trading-net
+
+networks:
+  trading-net:
+    driver: bridge
