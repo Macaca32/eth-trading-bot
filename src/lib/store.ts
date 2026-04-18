@@ -23,7 +23,7 @@ import {
   mockNotificationSettings,
 } from "./mock-data";
 
-type ViewName =
+export type ViewName =
   | "overview"
   | "strategies"
   | "ai-optimizer"
