@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 :: =====================================================================
 ::  ETH Trading Bot - Setup and Run (Windows)
-::  Hyperliquid DEX | No KYC | Paper/Live Trading
+::  Hyperliquid DEX -- No KYC -- Paper/Live Trading
 :: =====================================================================
 
 set "PROJECT_DIR=%~dp0"
@@ -16,10 +16,10 @@ set "ENV_EXAMPLE=%BOT_DIR%\.env.example"
 title ETH Trading Bot v2.4.1
 
 echo.
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║           ETH Trading Bot - Setup ^& Run                 ║
-echo  ║       Hyperliquid DEX  |  No KYC  |  AI Optimized       ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo            ETH Trading Bot - Setup and Run
+echo       Hyperliquid DEX -- No KYC -- AI Optimized
+echo  ========================================================
 echo.
 
 :: ==================== CHECK PREREQUISITES ====================
@@ -135,16 +135,16 @@ if not exist "%ENV_FILE%" (
         copy "%ENV_EXAMPLE%" "%ENV_FILE%" >nul
         echo  [OK]   Created .env from .env.example
         echo.
-        echo  ╔═══════════════════════════════════════════════════╗
-        echo  ║  IMPORTANT: Edit bot\.env before going live!      ║
-        echo  ║                                                   ║
-        echo  ║  - Set TRADING_MODE=paper for testnet (safe)     ║
-        echo  ║  - Set TRADING_MODE=live for real money          ║
-        echo  ║  - Add WALLET_ADDRESS for account tracking        ║
-        echo  ║  - Add WALLET_PRIVATE_KEY only for live trading   ║
-        echo  ║                                                   ║
-        echo  ║  The file will open now for you to edit.          ║
-        echo  ╚═══════════════════════════════════════════════════╝
+        echo  ========================================================
+        echo   IMPORTANT: Edit bot\.env before going live!
+        echo.
+        echo   - Set TRADING_MODE=paper for testnet (safe)
+        echo   - Set TRADING_MODE=live for real money
+        echo   - Add WALLET_ADDRESS for account tracking
+        echo   - Add WALLET_PRIVATE_KEY only for live trading
+        echo.
+        echo   The file will open now for you to edit.
+        echo  ========================================================
         echo.
         timeout /t 3 >nul
         notepad "%ENV_FILE%"
@@ -222,12 +222,12 @@ echo.
 
 echo [6/7] Select run mode...
 echo.
-echo  ┌──────────────────────────────────────────────────┐
-echo  │  1. Bot + API Server + Dashboard  ^(Recommended^)  │
-echo  │  2. Bot + API Server only    ^(No dashboard^)     │
-echo  │  3. API Server only           ^(No trading^)       │
-echo  │  4. Dashboard only            ^(No bot^)           │
-echo  └──────────────────────────────────────────────────┘
+echo  -------------------------------------------------------
+echo   1. Bot + API Server + Dashboard  ^(Recommended^)
+echo   2. Bot + API Server only    ^(No dashboard^)
+echo   3. API Server only           ^(No trading^)
+echo   4. Dashboard only            ^(No bot^)
+echo  -------------------------------------------------------
 echo.
 
 set /p MODE="  Enter choice [1-4]: "
@@ -266,12 +266,12 @@ echo  Invalid choice. Starting Bot + API Server + Dashboard...
 goto :run_all
 
 :run_all
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  Starting: Bot + API Server + Dashboard                  ║
-echo  ║  Mode:     !TRADING_DISPLAY!                                   ║
-echo  ║  API:      http://localhost:3003                        ║
-echo  ║  Dashboard: http://localhost:3000                        ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Starting: Bot + API Server + Dashboard
+echo   Mode:     !TRADING_DISPLAY!
+echo   API:      http://localhost:3003
+echo   Dashboard: http://localhost:3000
+echo  ========================================================
 echo.
 echo  Close this window to stop the bot.
 echo  Dashboard runs in a separate window.
@@ -285,11 +285,11 @@ python main.py --api --port 3003
 goto :done
 
 :run_bot_only
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  Starting: Bot + API Server                               ║
-echo  ║  Mode:     !TRADING_DISPLAY!                                   ║
-echo  ║  API:      http://localhost:3003                        ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Starting: Bot + API Server
+echo   Mode:     !TRADING_DISPLAY!
+echo   API:      http://localhost:3003
+echo  ========================================================
 echo.
 echo  Close this window to stop the bot.
 echo.
@@ -299,10 +299,10 @@ python main.py --api --port 3003
 goto :done
 
 :run_api_only
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  Starting: API Server only ^(no trading, dashboard only^)  ║
-echo  ║  API:      http://localhost:3003                        ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Starting: API Server only ^(no trading, dashboard only^)
+echo   API:      http://localhost:3003
+echo  ========================================================
 echo.
 echo  Close this window to stop the API server.
 echo.
@@ -312,10 +312,10 @@ python main.py --api-only --port 3003
 goto :done
 
 :run_dashboard_only
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  Starting: Dashboard only ^(bot API must run separately^) ║
-echo  ║  Dashboard: http://localhost:3000                        ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Starting: Dashboard only ^(bot API must run separately^)
+echo   Dashboard: http://localhost:3000
+echo  ========================================================
 echo.
 echo  Close this window to stop the dashboard.
 echo.
@@ -325,20 +325,20 @@ goto :done
 
 :done
 echo.
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  Bot has stopped.                                         ║
-echo  ║  To run again, just double-click this file.               ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   Bot has stopped.
+echo   To run again, just double-click this file.
+echo  ========================================================
 echo.
 pause
 exit /b 0
 
 :error
 echo.
-echo  ╔═══════════════════════════════════════════════════════════╗
-echo  ║  SETUP FAILED                                              ║
-echo  ║  Please fix the errors above and try again.               ║
-echo  ╚═══════════════════════════════════════════════════════════╝
+echo  ========================================================
+echo   SETUP FAILED
+echo   Please fix the errors above and try again.
+echo  ========================================================
 echo.
 pause
 exit /b 1
