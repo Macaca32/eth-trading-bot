@@ -360,7 +360,7 @@ export function RiskMonitor() {
                   color: "#fafafa",
                   fontSize: "12px",
                 }}
-                formatter={(value: number | string | (string | number)[], name: string) => {
+                formatter={(value, name) => {
                   if (name === "pnl")
                     return [
                       `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(4)} ETH`,
