@@ -303,9 +303,11 @@ function SignalItem({ signal }: { signal: Signal }) {
         </div>
         <p className="text-xs text-zinc-400 leading-relaxed">{signal.reason}</p>
         <div className="mt-1.5 flex items-center gap-3 text-[10px] text-zinc-600">
-          <span>
-            {isBuy ? ArrowUpRight : isSell ? ArrowDownRight : "×"}{" "}
-            ${signal.price.toLocaleString()}
+          <span className="inline-flex items-center gap-1">
+            {isBuy && <ArrowUpRight className="h-3 w-3" />}
+            {isSell && <ArrowDownRight className="h-3 w-3" />}
+            {!isBuy && !isSell && <span className="text-xs">x</span>}
+            {" "}${signal.price.toLocaleString()}
           </span>
           <span>Confidence: {signal.confidence}%</span>
           <span>{timeAgo(signal.timestamp)}</span>
