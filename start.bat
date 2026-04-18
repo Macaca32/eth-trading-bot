@@ -1,9 +1,9 @@
 @echo off
 setlocal EnableDelayedExpansion
-:: =====================================================================
-::  ETH Trading Bot - Setup and Run (Windows)
-::  Hyperliquid DEX -- No KYC -- Paper/Live Trading
-:: =====================================================================
+REM =====================================================================
+REM  ETH Trading Bot - Setup and Run (Windows)
+REM  Hyperliquid DEX -- No KYC -- Paper/Live Trading
+REM =====================================================================
 
 set "PROJECT_DIR=%~dp0"
 set "BOT_DIR=%PROJECT_DIR%bot"
@@ -41,15 +41,28 @@ if errorlevel 1 (
 )
 
 REM Check Node.js
+set "DASHBOARD_OK=0"
 where %NODE% >nul 2>&1
 if errorlevel 1 (
-    echo  [FAIL] Node.js is not installed or not in PATH.
-    echo         Download from: https://nodejs.org/  ^(choose LTS^)
-    echo.
-    goto :error
+    echo  [WARN] Node.js is not installed. Dashboard will not be available.
+    echo         Download from: https://nodejs.org/  ^(choose 22.x LTS^)
+    echo         Bot will still work - API at http://localhost:3003
 ) else (
     for /f "tokens=1" %%v in ('node --version 2^>^&1') do set NODEVER=%%v
     echo  [OK]   Node.js !NODEVER!
+    REM Check if Node version is high enough for Prisma
+    for /f "tokens=1 delims=v" %%v in ('node --version 2^>^&1') do set NODEVER_NUM=%%v
+    REM Simple version check: if major version is 20, check minor
+    echo !NODEVER_NUM! | findstr /r "^22\." >nul && set "DASHBOARD_OK=1"
+    echo !NODEVER_NUM! | findstr /r "^24\." >nul && set "DASHBOARD_OK=1"
+    echo !NODEVER_NUM! | findstr /r "^2[5-9]\." >nul && set "DASHBOARD_OK=1"
+    echo !NODEVER_NUM! | findstr /r "^[3-9][0-9]" >nul && set "DASHBOARD_OK=1"
+    if "!DASHBOARD_OK!"=="0" (
+        echo  [WARN] Node.js !NODEVER_NUM! is too old for Prisma ^(needs 20.19+ / 22.12+ / 24+^).
+        echo         Dashboard will be skipped. Upgrade Node.js from:
+        echo         https://nodejs.org/
+        echo         Bot will still work - API at http://localhost:3003
+    )
 )
 
 REM Check Git
@@ -182,6 +195,12 @@ REM ==================== NODE.JS DEPENDENCIES ====================
 echo [5/7] Setting up Next.js dashboard...
 echo.
 
+if "!DASHBOARD_OK!"=="0" (
+    echo  [SKIP] Dashboard skipped - Node.js needs upgrade to v22+ LTS.
+    echo         Bot API will still be available at http://localhost:3003
+    goto :skip_dashboard
+)
+
 if not exist "%PROJECT_DIR%package.json" (
     echo  [WARN] package.json not found. Skipping dashboard setup.
     echo         The bot will still work without the dashboard.
@@ -208,9 +227,12 @@ if not exist "%PROJECT_DIR%\.next" (
     cd /d "%PROJECT_DIR%"
     call %NODE% run build
     if errorlevel 1 (
-        echo  [WARN] Build had issues. Will try dev mode instead.
+        echo  [WARN] Build failed. Dashboard will use dev mode.
+        set "DASHBOARD_BUILD_OK=0"
+    ) else (
+        set "DASHBOARD_BUILD_OK=1"
     )
-    echo  [OK]   Dashboard build complete.
+    echo  [OK]   Dashboard setup complete.
 ) else (
     echo  [OK]   Dashboard already built. ^(delete .next folder to rebuild^)
 )
@@ -230,9 +252,17 @@ echo   4. Dashboard only            ^(No bot^)
 echo  -------------------------------------------------------
 echo.
 
+if "!DASHBOARD_OK!"=="0" (
+    echo  [NOTE] Dashboard unavailable. Auto-selecting mode 2...
+    set "MODE=2"
+    echo.
+    goto :skip_mode_select
+)
+
 set /p MODE="  Enter choice [1-4]: "
 if "%MODE%"=="" set MODE=1
 
+:skip_mode_select
 echo.
 
 REM ==================== LAUNCH ====================

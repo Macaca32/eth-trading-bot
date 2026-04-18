@@ -142,8 +142,8 @@ class DataManager:
             logger.debug("Already subscribed to {}", key)
             return
 
-        async def _ws_handler(candle: Candle) -> None:
-            # Store in DB
+        def _ws_handler(candle: Candle) -> None:
+            # Store in DB (sync call, safe within WS loop context)
             self._db.insert_candles([{
                 "pair": pair,
                 "timeframe": timeframe,
