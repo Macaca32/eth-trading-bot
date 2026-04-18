@@ -219,7 +219,7 @@ export function AiOptimizer() {
                     color: "#fafafa",
                     fontSize: "12px",
                   }}
-                  formatter={(value: number) => [
+                  formatter={(value: number | string | (string | number)[]) => [
                     `${value}%`,
                     "Importance",
                   ]}

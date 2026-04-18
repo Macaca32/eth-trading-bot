@@ -360,10 +360,10 @@ export function RiskMonitor() {
                   color: "#fafafa",
                   fontSize: "12px",
                 }}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number | string | (string | number)[], name: string) => {
                   if (name === "pnl")
                     return [
-                      `${value >= 0 ? "+" : ""}${value.toFixed(4)} ETH`,
+                      `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(4)} ETH`,
                       "Daily P&L",
                     ];
                   return [value, name];

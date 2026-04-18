@@ -149,7 +149,7 @@ export function Overview() {
                     color: "#fafafa",
                     fontSize: "12px",
                   }}
-                  formatter={(value: number) => [`${value.toFixed(4)} ETH`, "Equity"]}
+                  formatter={(value: number | string | (string | number)[]) => [`${Number(value).toFixed(4)} ETH`, "Equity"]}
                 />
                 <Area
                   type="monotone"
