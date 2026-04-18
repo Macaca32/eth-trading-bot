@@ -22,12 +22,12 @@ echo       Hyperliquid DEX -- No KYC -- AI Optimized
 echo  ========================================================
 echo.
 
-:: ==================== CHECK PREREQUISITES ====================
+REM ==================== CHECK PREREQUISITES ====================
 
 echo [1/7] Checking prerequisites...
 echo.
 
-:: Check Python
+REM Check Python
 where %PYTHON% >nul 2>&1
 if errorlevel 1 (
     echo  [FAIL] Python is not installed or not in PATH.
@@ -40,7 +40,7 @@ if errorlevel 1 (
     echo  [OK]   Python !PYVER!
 )
 
-:: Check Node.js
+REM Check Node.js
 where %NODE% >nul 2>&1
 if errorlevel 1 (
     echo  [FAIL] Node.js is not installed or not in PATH.
@@ -52,7 +52,7 @@ if errorlevel 1 (
     echo  [OK]   Node.js !NODEVER!
 )
 
-:: Check Git
+REM Check Git
 where git >nul 2>&1
 if errorlevel 1 (
     echo  [WARN] Git not found - version updates will need manual install.
@@ -62,7 +62,7 @@ if errorlevel 1 (
 
 echo.
 
-:: ==================== PYTHON VIRTUAL ENVIRONMENT ====================
+REM ==================== PYTHON VIRTUAL ENVIRONMENT ====================
 
 echo [2/7] Setting up Python virtual environment...
 echo.
@@ -82,7 +82,7 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo  [OK]   Virtual environment already exists.
 )
 
-:: Activate venv
+REM Activate venv
 echo  Activating virtual environment...
 call "%VENV_DIR%\Scripts\activate.bat"
 if errorlevel 1 (
@@ -93,7 +93,7 @@ if errorlevel 1 (
 echo  [OK]   Virtual environment activated.
 echo.
 
-:: ==================== PYTHON DEPENDENCIES ====================
+REM ==================== PYTHON DEPENDENCIES ====================
 
 echo [3/7] Installing Python packages...
 echo.
@@ -125,7 +125,7 @@ if errorlevel 1 (
 echo  [OK]   All Python packages installed.
 echo.
 
-:: ==================== .ENV CONFIGURATION ====================
+REM ==================== .ENV CONFIGURATION ====================
 
 echo [4/7] Configuring environment...
 echo.
@@ -171,13 +171,13 @@ if not exist "%ENV_FILE%" (
 )
 echo.
 
-:: Create required directories
+REM Create required directories
 if not exist "%BOT_DIR%\data" mkdir "%BOT_DIR%\data"
 if not exist "%BOT_DIR%\logs" mkdir "%BOT_DIR%\logs"
 echo  [OK]   Data and logs directories ready.
 echo.
 
-:: ==================== NODE.JS DEPENDENCIES ====================
+REM ==================== NODE.JS DEPENDENCIES ====================
 
 echo [5/7] Setting up Next.js dashboard...
 echo.
@@ -202,7 +202,7 @@ if not exist "%PROJECT_DIR%\node_modules" (
     echo  [OK]   node_modules already exists.
 )
 
-:: Build Next.js
+REM Build Next.js
 if not exist "%PROJECT_DIR%\.next" (
     echo  Building Next.js dashboard...
     cd /d "%PROJECT_DIR%"
@@ -218,7 +218,7 @@ echo.
 
 :skip_dashboard
 
-:: ==================== CHOOSE RUN MODE ====================
+REM ==================== CHOOSE RUN MODE ====================
 
 echo [6/7] Select run mode...
 echo.
@@ -235,12 +235,12 @@ if "%MODE%"=="" set MODE=1
 
 echo.
 
-:: ==================== LAUNCH ====================
+REM ==================== LAUNCH ====================
 
 echo [7/7] Launching...
 echo.
 
-:: Kill any existing processes on our ports
+REM Kill any existing processes on our ports
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3003 " ^| findstr "LISTENING"') do (
     echo  Stopping existing API server on port 3003 ^(PID: %%a^)...
     taskkill /PID %%a /F >nul 2>&1
@@ -250,7 +250,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000 " ^| findstr "LISTENIN
     taskkill /PID %%a /F >nul 2>&1
 )
 
-:: Read TRADING_MODE from .env for display
+REM Read TRADING_MODE from .env for display
 set TRADING_DISPLAY=paper
 if exist "%ENV_FILE%" (
     for /f "tokens=2 delims==" %%m in ('findstr /i "TRADING_MODE" "%ENV_FILE%"') do (
@@ -276,9 +276,9 @@ echo.
 echo  Close this window to stop the bot.
 echo  Dashboard runs in a separate window.
 echo.
-:: Launch dashboard in new window
-start "ETH Dashboard - http://localhost:3000" cmd /c "cd /d "%PROJECT_DIR%" && %NODE% start"
-:: Launch bot in this window
+REM Launch dashboard in new window
+start "ETH Dashboard - http://localhost:3000" cmd /c "cd /d %PROJECT_DIR% && %NODE% start"
+REM Launch bot in this window
 cd /d "%BOT_DIR%"
 call "%VENV_DIR%\Scripts\activate.bat"
 python main.py --api --port 3003
