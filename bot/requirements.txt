@@ -1,0 +1,9 @@
+hyperliquid-python-sdk
+pandas
+numpy
+optuna
+scikit-learn
+websockets
+aiohttp
+loguru
+python-dotenv
