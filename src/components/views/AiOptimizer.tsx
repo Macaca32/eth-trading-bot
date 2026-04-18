@@ -186,7 +186,7 @@ export function AiOptimizer() {
           subtitle="Impact on Sharpe ratio"
         >
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={240} minWidth={300}>
               <BarChart
                 data={mockParamImportance}
                 layout="vertical"

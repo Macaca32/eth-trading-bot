@@ -336,7 +336,7 @@ export function RiskMonitor() {
         subtitle="Last 30 days performance"
       >
         <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={240} minWidth={300}>
             <BarChart data={dailyPnlData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis

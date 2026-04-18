@@ -11,6 +11,7 @@ import { RiskMonitor } from "./views/RiskMonitor";
 import { Settings } from "./views/Settings";
 import { Menu, TrendingUp } from "lucide-react";
 import type { ViewName } from "@/lib/store";
+import { useEffect, useState } from "react";
 
 const viewComponents: Record<ViewName, React.ComponentType> = {
   overview: Overview,
@@ -26,6 +27,22 @@ const viewComponents: Record<ViewName, React.ComponentType> = {
 export function Dashboard() {
   const { activeView, setSidebarOpen, tradingMode } = useAppStore();
   const ActiveView = viewComponents[activeView];
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="flex h-screen bg-zinc-950 items-center justify-center">
+        <div className="flex items-center gap-3 text-zinc-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400" />
+          <span className="text-sm">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-zinc-950 overflow-hidden">
