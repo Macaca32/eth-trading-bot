@@ -12,6 +12,8 @@ import type {
   NotificationSettings,
 } from "./types";
 
+export type { OptimizationRun } from "./types";
+
 // ─── Strategies ────────────────────────────────────────────────────────
 export const mockStrategies: Strategy[] = [
   {
