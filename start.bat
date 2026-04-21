@@ -151,7 +151,7 @@ if not exist "%ENV_FILE%" (
         echo  ========================================================
         echo   IMPORTANT: Edit bot\.env before going live!
         echo.
-        echo   - Set TRADING_MODE=paper for testnet (safe)
+        echo   - Set TRADING_MODE=paper for testnet ^(safe^)
         echo   - Set TRADING_MODE=live for real money
         echo   - Add WALLET_ADDRESS for account tracking
         echo   - Add WALLET_PRIVATE_KEY only for live trading
