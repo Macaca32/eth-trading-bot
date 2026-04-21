@@ -266,11 +266,11 @@ class BotAPIServer:
             for s in self._bot._strategies:
                 param_ranges = s.get_param_ranges()
                 params = []
-                for name, (min_val, max_val, default) in param_ranges.items():
-                    current = s._params.get(name, default) if hasattr(s, "_params") else default
+                for name, (min_val, max_val) in param_ranges.items():
+                    default = s._params.get(name, min_val) if hasattr(s, "_params") else min_val
                     params.append({
                         "name": name.replace("_", " ").title(),
-                        "value": current,
+                        "value": default,
                         "min": min_val,
                         "max": max_val,
                         "step": 0.1 if isinstance(default, float) else 1,
