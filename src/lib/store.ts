@@ -5,21 +5,15 @@ import type {
   Trade,
   Position,
   TradingPair,
+  EquityPoint,
   Signal,
   RiskMetrics,
   PairRiskAllocation,
   OptimizationRun,
+  DailyPnl,
   NotificationSettings,
 } from "./types";
 import {
-  mockStrategies,
-  mockTrades,
-  mockPositions,
-  mockPairs,
-  mockInitialSignals,
-  mockRiskMetrics,
-  mockPairRiskAllocations,
-  mockOptimizationRuns,
   mockNotificationSettings,
 } from "./mock-data";
 
@@ -33,6 +27,29 @@ export type ViewName =
   | "risk-monitor"
   | "settings";
 
+const emptyRiskMetrics: RiskMetrics = {
+  totalExposure: 0,
+  maxExposure: 0.5,
+  dailyPnl: 0,
+  weeklyPnl: 0,
+  monthlyPnl: 0,
+  sharpeRatio: 0,
+  sortinoRatio: 0,
+  maxDrawdown: 0,
+  currentDrawdown: 0,
+  winRate: 0,
+  profitFactor: 0,
+  avgWin: 0,
+  avgLoss: 0,
+  consecutiveWins: 0,
+  consecutiveLosses: 0,
+  circuitBreakerActive: false,
+  circuitBreakerLevel: 0,
+  dailyLossLimit: 7.0,
+  maxPositions: 5,
+  usedPositions: 0,
+};
+
 interface AppState {
   // Navigation
   activeView: ViewName;
@@ -42,7 +59,9 @@ interface AppState {
   tradingMode: TradingMode;
   apiConnected: boolean;
 
-  // Data
+  // Data (populated from API, empty by default)
+  equityCurve: EquityPoint[];
+  dailyPnl: DailyPnl[];
   strategies: Strategy[];
   trades: Trade[];
   positions: Position[];
@@ -73,7 +92,17 @@ interface AppState {
   setMaxPositions: (max: number) => void;
   setMaxExposure: (max: number) => void;
   updateNotification: (key: keyof NotificationSettings, value: boolean) => void;
-  updateRiskMetrics: (metrics: Partial<RiskMetrics>) => void;
+
+  // Internal setters (used by useBotApi to replace data from API)
+  _setPositions: (positions: Position[]) => void;
+  _setTrades: (trades: Trade[]) => void;
+  _setSignals: (signals: Signal[]) => void;
+  _setStrategies: (strategies: Strategy[]) => void;
+  _setRiskMetrics: (metrics: RiskMetrics) => void;
+  _setPairs: (pairs: TradingPair[]) => void;
+  _setOptimizations: (runs: OptimizationRun[]) => void;
+  _setEquityCurve: (curve: EquityPoint[]) => void;
+  _setDailyPnl: (pnl: DailyPnl[]) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -83,17 +112,19 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Trading
   tradingMode: "paper",
-  apiConnected: true,
+  apiConnected: false,
 
-  // Data
-  strategies: mockStrategies,
-  trades: mockTrades,
-  positions: mockPositions,
-  pairs: mockPairs,
-  signals: mockInitialSignals,
-  riskMetrics: mockRiskMetrics,
-  pairRiskAllocations: mockPairRiskAllocations,
-  optimizationRuns: mockOptimizationRuns,
+  // Data — empty by default, populated from API
+  equityCurve: [],
+  dailyPnl: [],
+  strategies: [],
+  trades: [],
+  positions: [],
+  pairs: [],
+  signals: [],
+  riskMetrics: emptyRiskMetrics,
+  pairRiskAllocations: [],
+  optimizationRuns: [],
   notifications: mockNotificationSettings,
 
   // Settings
@@ -169,8 +200,14 @@ export const useAppStore = create<AppState>((set) => ({
       notifications: { ...s.notifications, [key]: value },
     })),
 
-  updateRiskMetrics: (metrics) =>
-    set((s) => ({
-      riskMetrics: { ...s.riskMetrics, ...metrics },
-    })),
+  // Internal setters — called by useBotApi hook
+  _setPositions: (positions) => set({ positions }),
+  _setTrades: (trades) => set({ trades }),
+  _setSignals: (signals) => set({ signals }),
+  _setStrategies: (strategies) => set({ strategies }),
+  _setRiskMetrics: (metrics) => set({ riskMetrics: metrics }),
+  _setPairs: (pairs) => set({ pairs }),
+  _setOptimizations: (runs) => set({ optimizationRuns: runs }),
+  _setEquityCurve: (curve) => set({ equityCurve: curve }),
+  _setDailyPnl: (pnl) => set({ dailyPnl: pnl }),
 }));

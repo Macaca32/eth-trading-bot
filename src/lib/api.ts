@@ -1,222 +1,187 @@
 /**
- * API client for the ETH Trading Bot backend.
- *
- * Connects to the FastAPI server (default: http://localhost:3003).
- * Falls back to mock data when the API is unreachable.
+ * API client for the ETH Trading Bot backend (port 3003).
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3003";
+const API_BASE = "http://localhost:3003";
 
-// ─── Generic fetch wrapper ───────────────────────────────────────────
-
-async function apiFetch<T>(path: string, fallback: T): Promise<T> {
+async function apiFetch<T>(endpoint: string): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      signal: AbortSignal.timeout(5000),
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) throw new Error(`API ${res.status}`);
     return await res.json();
   } catch {
-    console.warn(`[API] Failed to fetch ${path}, using fallback`);
-    return fallback;
+    return [] as unknown as T;
   }
 }
 
-// ─── WebSocket connection ────────────────────────────────────────────
-
-type WsMessageHandler = (data: any) => void;
-
-let ws: WebSocket | null = null;
-let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
-let wsHandlers: Map<string, WsMessageHandler[]> = new Map();
-
-function connectWebSocket() {
-  if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
-    return;
-  }
-
-  const wsUrl = API_BASE.replace(/^http/, "ws");
+async function apiPost(endpoint: string, body: unknown) {
   try {
-    ws = new WebSocket(wsUrl + "/ws");
-
-    ws.onopen = () => {
-      console.log("[WS] Connected to bot API");
-      if (wsReconnectTimer) {
-        clearTimeout(wsReconnectTimer);
-        wsReconnectTimer = null;
-      }
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        const handlers = wsHandlers.get(msg.type) || [];
-        handlers.forEach((handler) => handler(msg.data));
-        // Also notify wildcard handlers
-        const wildcards = wsHandlers.get("*") || [];
-        wildcards.forEach((handler) => handler(msg));
-      } catch {
-        // Ignore parse errors
-      }
-    };
-
-    ws.onclose = () => {
-      console.log("[WS] Disconnected, reconnecting in 3s...");
-      ws = null;
-      wsReconnectTimer = setTimeout(connectWebSocket, 3000);
-    };
-
-    ws.onerror = () => {
-      ws?.close();
-    };
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(5000),
+    });
+    return await res.json();
   } catch {
-    wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+    return { success: false, error: "API unreachable" };
   }
 }
 
-function onWsMessage(type: string, handler: WsMessageHandler) {
-  if (!wsHandlers.has(type)) wsHandlers.set(type, []);
-  wsHandlers.get(type)!.push(handler);
-}
+export const botApi = {
+  getStatus: () => apiFetch<{ status: string; mode: string; connected: boolean; uptime: string; version: string }>("/api/status"),
+  getBalance: () => apiFetch<{ total_equity: number; available_balance: number; margin_used: number; unrealized_pnl: number }>("/api/balance"),
+  getPositions: () => apiFetch<ApiPosition[]>("/api/positions"),
+  getTrades: () => apiFetch<ApiTrade[]>("/api/trades"),
+  getSignals: () => apiFetch<ApiSignal[]>("/api/signals"),
+  getStrategies: () => apiFetch<ApiStrategy[]>("/api/strategies"),
+  getRisk: () => apiFetch<ApiRisk>("/api/risk"),
+  getPairs: () => apiFetch<ApiPair[]>("/api/pairs"),
+  getOptimizations: () => apiFetch<ApiOptimization[]>("/api/optimizations"),
+  getEquity: () => apiFetch<ApiEquityPoint[]>("/api/equity"),
+  getDailyPnl: () => apiFetch<ApiDailyPnl[]>("/api/daily-pnl"),
 
-function offWsMessage(type: string, handler: WsMessageHandler) {
-  const handlers = wsHandlers.get(type);
-  if (handlers) {
-    const idx = handlers.indexOf(handler);
-    if (idx >= 0) handlers.splice(idx, 1);
-  }
-}
-
-// ─── REST API methods ────────────────────────────────────────────────
-
-export const api = {
-  /** Get bot status (mode, connected, uptime) */
-  getStatus: () => apiFetch("/api/status", { status: "stopped", mode: "paper", connected: false }),
-
-  /** Get account balance */
-  getBalance: () =>
-    apiFetch("/api/balance", {
-      total_equity: 0, available_balance: 0, margin_used: 0, unrealized_pnl: 0,
-    }),
-
-  /** Get open positions */
-  getPositions: () => apiFetch("/api/positions", []),
-
-  /** Get trade history */
-  getTrades: () => apiFetch("/api/trades", []),
-
-  /** Get recent signals */
-  getSignals: () => apiFetch("/api/signals", []),
-
-  /** Get strategy configs */
-  getStrategies: () => apiFetch("/api/strategies", []),
-
-  /** Get risk metrics */
-  getRiskMetrics: () =>
-    apiFetch("/api/risk", {
-      totalExposure: 0, maxExposure: 0.5, dailyPnl: 0, weeklyPnl: 0, monthlyPnl: 0,
-      sharpeRatio: 0, sortinoRatio: 0, maxDrawdown: 0, currentDrawdown: 0,
-      winRate: 0, profitFactor: 0, avgWin: 0, avgLoss: 0,
-      consecutiveWins: 0, consecutiveLosses: 0,
-      circuitBreakerActive: false, circuitBreakerLevel: 0,
-      dailyLossLimit: 7, maxPositions: 5, usedPositions: 0,
-    }),
-
-  /** Get screened pairs */
-  getPairs: () => apiFetch("/api/pairs", []),
-
-  /** Get optimization history */
-  getOptimizations: () => apiFetch("/api/optimizations", []),
-
-  /** Get equity curve */
-  getEquity: () =>
-    apiFetch("/api/equity", []),
-
-  /** Get daily P&L */
-  getDailyPnl: () => apiFetch("/api/daily-pnl", []),
-
-  // ─── Mutations ──────────────────────────────────────────────────
-
-  /** Toggle strategy enabled/disabled */
-  toggleStrategy: async (strategyId: string, enabled: boolean) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/strategies/toggle`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ strategy_id: strategyId, enabled }),
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  /** Update a strategy parameter */
-  updateParam: async (strategyId: string, paramName: string, value: number) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/strategies/param`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ strategy_id: strategyId, param_name: paramName, value }),
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  /** Switch trading mode */
-  setTradingMode: async (mode: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/mode`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  /** Update risk settings */
-  updateRiskSettings: async (settings: {
-    daily_loss_limit?: number;
-    max_positions?: number;
-    max_exposure?: number;
-  }) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/risk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  /** Start optimization */
-  startOptimization: async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/optimizations/start`, {
-        method: "POST",
-      });
-      return await res.json();
-    } catch {
-      return { success: false };
-    }
-  },
-
-  // ─── WebSocket ─────────────────────────────────────────────────
-
-  /** Connect to the WebSocket server */
-  connectWs: connectWebSocket,
-
-  /** Subscribe to a WebSocket message type */
-  onWsMessage,
-
-  /** Unsubscribe from a WebSocket message type */
-  offWsMessage,
+  toggleStrategy: (strategyId: string, enabled: boolean) =>
+    apiPost("/api/strategies/toggle", { strategy_id: strategyId, enabled }),
+  updateParam: (strategyId: string, paramName: string, value: number) =>
+    apiPost("/api/strategies/param", { strategy_id: strategyId, param_name: paramName, value }),
+  setMode: (mode: string) =>
+    apiPost("/api/mode", { mode }),
+  updateRisk: (settings: { daily_loss_limit?: number; max_positions?: number; max_exposure?: number }) =>
+    apiPost("/api/risk", settings),
+  startOptimization: () =>
+    apiPost("/api/optimizations/start", {}),
 };
+
+// API response types (raw from backend)
+export interface ApiPosition {
+  id: string;
+  pair: string;
+  side: string;
+  strategy: string;
+  entry_price: number;
+  current_price: number;
+  quantity: number;
+  unrealized_pnl: number;
+  unrealized_pnl_percent: number;
+  leverage: number;
+  entry_date: string;
+  stop_loss: number;
+  take_profit: number;
+}
+
+export interface ApiTrade {
+  id: string;
+  pair: string;
+  side: string;
+  strategy: string;
+  entry_price: number;
+  exit_price?: number;
+  quantity: number;
+  pnl: number;
+  pnl_percent: number;
+  outcome: string;
+  entry_date: string;
+  exit_date?: string;
+  status: string;
+  fees: number;
+}
+
+export interface ApiSignal {
+  id: string;
+  pair: string;
+  type: string;
+  strategy: string;
+  price: number;
+  confidence: number;
+  timestamp: string;
+  reason: string;
+}
+
+export interface ApiStrategyParam {
+  name: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+}
+
+export interface ApiStrategy {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  winRate: number;
+  totalTrades: number;
+  avgProfit: number;
+  totalPnl: number;
+  timeframe: string;
+  params: ApiStrategyParam[];
+}
+
+export interface ApiRisk {
+  totalExposure: number;
+  maxExposure: number;
+  dailyPnl: number;
+  weeklyPnl: number;
+  monthlyPnl: number;
+  sharpeRatio: number;
+  sortinoRatio: number;
+  maxDrawdown: number;
+  currentDrawdown: number;
+  winRate: number;
+  profitFactor: number;
+  avgWin: number;
+  avgLoss: number;
+  consecutiveWins: number;
+  consecutiveLosses: number;
+  circuitBreakerActive: boolean;
+  circuitBreakerLevel: number;
+  dailyLossLimit: number;
+  maxPositions: number;
+  usedPositions: number;
+}
+
+export interface ApiPair {
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+  trendScore: number;
+  riskScore: number;
+  spread: number;
+  isBlacklisted: boolean;
+  lastSignal: string;
+  signalTime: string;
+}
+
+export interface ApiOptimization {
+  id: string;
+  strategy: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  iterations: number;
+  bestSharpe: number;
+  bestParams: Record<string, number>;
+  improvement: number;
+}
+
+export interface ApiEquityPoint {
+  date: string;
+  equity: number;
+  drawdown: number;
+  benchmark: number;
+}
+
+export interface ApiDailyPnl {
+  date: string;
+  pnl: number;
+  cumulative: number;
+  trades: number;
+}

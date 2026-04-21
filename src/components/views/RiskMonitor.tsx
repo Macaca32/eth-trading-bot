@@ -22,15 +22,14 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { mockDailyPnl } from "@/lib/mock-data";
 import { ChartCard } from "@/components/ui/StatCard";
 import { cn, formatEth } from "@/lib/utils";
 
 export function RiskMonitor() {
-  const { riskMetrics, pairRiskAllocations } = useAppStore();
+  const { riskMetrics, pairRiskAllocations, dailyPnl, apiConnected } = useAppStore();
   const exposurePercent = (riskMetrics.totalExposure / riskMetrics.maxExposure) * 100;
 
-  const dailyPnlData = mockDailyPnl.map((d) => ({
+  const dailyPnlData = dailyPnl.map((d) => ({
     ...d,
     label: d.date.slice(5),
   }));
@@ -335,53 +334,59 @@ export function RiskMonitor() {
         title="Daily P&L Tracker"
         subtitle="Last 30 days performance"
       >
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height={240} minWidth={300}>
-            <BarChart data={dailyPnlData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "#71717a", fontSize: 10 }}
-                axisLine={{ stroke: "#27272a" }}
-                tickLine={false}
-                interval={4}
-              />
-              <YAxis
-                tick={{ fill: "#71717a", fontSize: 11 }}
-                axisLine={{ stroke: "#27272a" }}
-                tickLine={false}
-                tickFormatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#18181b",
-                  border: "1px solid #27272a",
-                  borderRadius: "8px",
-                  color: "#fafafa",
-                  fontSize: "12px",
-                }}
-                formatter={(value, name) => {
-                  if (name === "pnl")
-                    return [
-                      `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(4)} ETH`,
-                      "Daily P&L",
-                    ];
-                  return [value, name];
-                }}
-              />
-              <ReferenceLine y={0} stroke="#3f3f46" />
-              <Bar dataKey="pnl" radius={[2, 2, 0, 0]} barSize={8}>
-                {dailyPnlData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"}
-                    opacity={0.8}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {dailyPnlData.length > 0 ? (
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height={240} minWidth={300}>
+              <BarChart data={dailyPnlData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#71717a", fontSize: 10 }}
+                  axisLine={{ stroke: "#27272a" }}
+                  tickLine={false}
+                  interval={4}
+                />
+                <YAxis
+                  tick={{ fill: "#71717a", fontSize: 11 }}
+                  axisLine={{ stroke: "#27272a" }}
+                  tickLine={false}
+                  tickFormatter={(v) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#18181b",
+                    border: "1px solid #27272a",
+                    borderRadius: "8px",
+                    color: "#fafafa",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value, name) => {
+                    if (name === "pnl")
+                      return [
+                        `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(4)} ETH`,
+                        "Daily P&L",
+                      ];
+                    return [value, name];
+                  }}
+                />
+                <ReferenceLine y={0} stroke="#3f3f46" />
+                <Bar dataKey="pnl" radius={[2, 2, 0, 0]} barSize={8}>
+                  {dailyPnlData.map((entry, index) => (
+                    <Cell
+                      key={index}
+                      fill={entry.pnl >= 0 ? "#10b981" : "#ef4444"}
+                      opacity={0.8}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-64 flex items-center justify-center text-zinc-500 text-sm">
+            {apiConnected ? "No daily P&L data available yet" : "Waiting for bot connection..."}
+          </div>
+        )}
       </ChartCard>
 
       {/* Per-Pair Risk Allocation */}
@@ -389,73 +394,79 @@ export function RiskMonitor() {
         title="Per-Pair Risk Allocation"
         subtitle="Risk budget distribution across pairs"
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Pair
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Allocation
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Used
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Max Loss
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Usage
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800/50">
-              {pairRiskAllocations.map((alloc) => {
-                const usagePercent = (alloc.used / alloc.allocated) * 100;
-                return (
-                  <tr
-                    key={alloc.pair}
-                    className="hover:bg-zinc-800/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-zinc-200">
-                      {alloc.pair}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-400">
-                      {alloc.allocated}%
-                    </td>
-                    <td className="px-4 py-3 text-zinc-300">
-                      {alloc.used}%
-                    </td>
-                    <td className="px-4 py-3 text-amber-400">
-                      {alloc.maxLoss} ETH
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded-full",
-                              usagePercent >= 80
-                                ? "bg-red-500"
-                                : usagePercent >= 60
-                                ? "bg-amber-500"
-                                : "bg-emerald-500"
-                            )}
-                            style={{ width: `${usagePercent}%` }}
-                          />
+        {pairRiskAllocations.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Pair
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Allocation
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Used
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Max Loss
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Usage
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/50">
+                {pairRiskAllocations.map((alloc) => {
+                  const usagePercent = (alloc.used / alloc.allocated) * 100;
+                  return (
+                    <tr
+                      key={alloc.pair}
+                      className="hover:bg-zinc-800/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-zinc-200">
+                        {alloc.pair}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400">
+                        {alloc.allocated}%
+                      </td>
+                      <td className="px-4 py-3 text-zinc-300">
+                        {alloc.used}%
+                      </td>
+                      <td className="px-4 py-3 text-amber-400">
+                        {alloc.maxLoss} ETH
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full",
+                                usagePercent >= 80
+                                  ? "bg-red-500"
+                                  : usagePercent >= 60
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500"
+                              )}
+                              style={{ width: `${usagePercent}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-zinc-500">
+                            {usagePercent.toFixed(0)}%
+                          </span>
                         </div>
-                        <span className="text-xs text-zinc-500">
-                          {usagePercent.toFixed(0)}%
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
+            No pair risk allocation data
+          </div>
+        )}
       </ChartCard>
     </div>
   );

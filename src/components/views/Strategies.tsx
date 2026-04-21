@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Settings2,
   ChevronDown,
@@ -8,6 +8,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { botApi } from "@/lib/api";
 import { cn, formatEth } from "@/lib/utils";
 import type { Strategy } from "@/lib/types";
 
@@ -16,6 +17,26 @@ export function Strategies() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const enabledCount = strategies.filter((s) => s.enabled).length;
+
+  const handleToggleEnabled = useCallback(
+    async (id: string, currentEnabled: boolean) => {
+      // Optimistic update
+      toggleStrategy(id);
+      // Send to API
+      await botApi.toggleStrategy(id, !currentEnabled);
+    },
+    [toggleStrategy]
+  );
+
+  const handleUpdateParam = useCallback(
+    async (strategyId: string, paramName: string, value: number) => {
+      // Optimistic update
+      updateStrategyParam(strategyId, paramName, value);
+      // Send to API
+      await botApi.updateParam(strategyId, paramName, value);
+    },
+    [updateStrategyParam]
+  );
 
   return (
     <div className="space-y-6">
@@ -37,20 +58,26 @@ export function Strategies() {
 
       {/* Strategy Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {strategies.map((strategy) => (
-          <StrategyCard
-            key={strategy.id}
-            strategy={strategy}
-            isExpanded={expandedId === strategy.id}
-            onToggleExpand={() =>
-              setExpandedId(expandedId === strategy.id ? null : strategy.id)
-            }
-            onToggleEnabled={() => toggleStrategy(strategy.id)}
-            onUpdateParam={(name, value) =>
-              updateStrategyParam(strategy.id, name, value)
-            }
-          />
-        ))}
+        {strategies.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center h-48 text-zinc-500 text-sm rounded-xl border border-zinc-800 bg-zinc-900/60">
+            No strategies configured
+          </div>
+        ) : (
+          strategies.map((strategy) => (
+            <StrategyCard
+              key={strategy.id}
+              strategy={strategy}
+              isExpanded={expandedId === strategy.id}
+              onToggleExpand={() =>
+                setExpandedId(expandedId === strategy.id ? null : strategy.id)
+              }
+              onToggleEnabled={() => handleToggleEnabled(strategy.id, strategy.enabled)}
+              onUpdateParam={(name, value) =>
+                handleUpdateParam(strategy.id, name, value)
+              }
+            />
+          ))
+        )}
       </div>
     </div>
   );

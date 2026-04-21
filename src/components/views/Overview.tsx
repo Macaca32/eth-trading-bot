@@ -20,25 +20,16 @@ import {
   ArrowDownRight,
   Radio,
   Zap,
+  WifiOff,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { mockEquityCurve, generateSignal } from "@/lib/mock-data";
 import { StatCard, ChartCard } from "@/components/ui/StatCard";
 import { cn, formatEth, timeAgo } from "@/lib/utils";
 import type { Signal } from "@/lib/types";
 
 export function Overview() {
-  const { positions, signals, addSignal, riskMetrics } = useAppStore();
+  const { positions, signals, riskMetrics, equityCurve, apiConnected } = useAppStore();
   const feedRef = useRef<HTMLDivElement>(null);
-
-  // Auto-update signals every 8 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newSignal = generateSignal();
-      addSignal(newSignal);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [addSignal]);
 
   // Auto-scroll signal feed
   useEffect(() => {
@@ -49,7 +40,7 @@ export function Overview() {
 
   const totalUnrealized = positions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
 
-  const equityData = mockEquityCurve.map((p) => ({
+  const equityData = equityCurve.map((p) => ({
     ...p,
     label: p.date.slice(5),
   }));
@@ -64,13 +55,20 @@ export function Overview() {
             Real-time trading bot performance and activity
           </p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-medium text-emerald-400">Bot Active</span>
-        </div>
+        {!apiConnected ? (
+          <div className="flex items-center gap-2 rounded-full bg-red-500/10 border border-red-500/20 px-3 py-1.5">
+            <WifiOff className="h-3.5 w-3.5 text-red-400" />
+            <span className="text-xs font-medium text-red-400">Connecting to bot...</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-medium text-emerald-400">Bot Active</span>
+          </div>
+        )}
       </div>
 
       {/* Stat Cards */}
@@ -102,7 +100,7 @@ export function Overview() {
         <StatCard
           title="Max Drawdown"
           value={`-${riskMetrics.maxDrawdown.toFixed(2)}%`}
-          subtitle="Current: -{riskMetrics.currentDrawdown.toFixed(2)}%"
+          subtitle={`Current: -${riskMetrics.currentDrawdown.toFixed(2)}%`}
           icon={AlertTriangle}
           trend="down"
           trendValue="Controlling"
@@ -117,68 +115,76 @@ export function Overview() {
           subtitle="Portfolio value over time (ETH)"
           className="xl:col-span-2"
         >
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height={240} minWidth={300}>
-              <AreaChart data={equityData}>
-                <defs>
-                  <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: "#71717a", fontSize: 11 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  interval={14}
-                />
-                <YAxis
-                  tick={{ fill: "#71717a", fontSize: 11 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  domain={["auto", "auto"]}
-                  tickFormatter={(v) => v.toFixed(1)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #27272a",
-                    borderRadius: "8px",
-                    color: "#fafafa",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value) => [`${Number(value).toFixed(4)} ETH`, "Equity"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="equity"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fill="url(#equityGradient)"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="benchmark"
-                  stroke="#71717a"
-                  strokeWidth={1}
-                  strokeDasharray="4 4"
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500">
-            <div className="flex items-center gap-1.5">
-              <div className="h-0.5 w-4 rounded bg-emerald-500" />
-              <span>Portfolio</span>
+          {equityData.length > 0 ? (
+            <>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height={240} minWidth={300}>
+                  <AreaChart data={equityData}>
+                    <defs>
+                      <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "#71717a", fontSize: 11 }}
+                      axisLine={{ stroke: "#27272a" }}
+                      tickLine={false}
+                      interval={14}
+                    />
+                    <YAxis
+                      tick={{ fill: "#71717a", fontSize: 11 }}
+                      axisLine={{ stroke: "#27272a" }}
+                      tickLine={false}
+                      domain={["auto", "auto"]}
+                      tickFormatter={(v) => v.toFixed(1)}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#18181b",
+                        border: "1px solid #27272a",
+                        borderRadius: "8px",
+                        color: "#fafafa",
+                        fontSize: "12px",
+                      }}
+                      formatter={(value) => [`${Number(value).toFixed(4)} ETH`, "Equity"]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="equity"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fill="url(#equityGradient)"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="benchmark"
+                      stroke="#71717a"
+                      strokeWidth={1}
+                      strokeDasharray="4 4"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-0.5 w-4 rounded bg-emerald-500" />
+                  <span>Portfolio</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-0.5 w-4 rounded bg-zinc-600 border-dashed" />
+                  <span>Benchmark (Buy & Hold)</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="h-72 flex items-center justify-center text-zinc-500 text-sm">
+              {apiConnected ? "No equity data available yet" : "Waiting for bot connection..."}
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="h-0.5 w-4 rounded bg-zinc-600 border-dashed" />
-              <span>Benchmark (Buy & Hold)</span>
-            </div>
-          </div>
+          )}
         </ChartCard>
 
         {/* Active Positions */}
@@ -187,54 +193,60 @@ export function Overview() {
           subtitle={`${positions.length} open · ${formatEth(totalUnrealized)} unrealized`}
         >
           <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-            {positions.map((pos) => (
-              <div
-                key={pos.id}
-                className="rounded-lg border border-zinc-800 bg-zinc-850 p-3 hover:border-zinc-700 transition-colors"
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-zinc-100">
-                      {pos.pair}
+            {positions.length === 0 ? (
+              <div className="flex items-center justify-center h-48 text-zinc-500 text-sm">
+                {apiConnected ? "No positions yet" : "Waiting for bot connection..."}
+              </div>
+            ) : (
+              positions.map((pos) => (
+                <div
+                  key={pos.id}
+                  className="rounded-lg border border-zinc-800 bg-zinc-850 p-3 hover:border-zinc-700 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-zinc-100">
+                        {pos.pair}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                          pos.side === "long"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-red-500/15 text-red-400"
+                        )}
+                      >
+                        {pos.side}
+                      </span>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-sm font-semibold",
+                        pos.unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {formatEth(pos.unrealizedPnl)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-zinc-500">
+                    <span>
+                      Entry: {pos.entryPrice.toFixed(2)} → {pos.currentPrice.toFixed(2)}
                     </span>
                     <span
                       className={cn(
-                        "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
-                        pos.side === "long"
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-red-500/15 text-red-400"
+                        pos.unrealizedPnlPercent >= 0 ? "text-emerald-500" : "text-red-500"
                       )}
                     >
-                      {pos.side}
+                      {pos.unrealizedPnlPercent >= 0 ? "+" : ""}
+                      {pos.unrealizedPnlPercent.toFixed(2)}%
                     </span>
                   </div>
-                  <span
-                    className={cn(
-                      "text-sm font-semibold",
-                      pos.unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {formatEth(pos.unrealizedPnl)}
-                  </span>
+                  <div className="mt-1.5 text-[10px] text-zinc-600">
+                    {pos.strategy} · {timeAgo(pos.entryDate)}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>
-                    Entry: {pos.entryPrice.toFixed(2)} → {pos.currentPrice.toFixed(2)}
-                  </span>
-                  <span
-                    className={cn(
-                      pos.unrealizedPnlPercent >= 0 ? "text-emerald-500" : "text-red-500"
-                    )}
-                  >
-                    {pos.unrealizedPnlPercent >= 0 ? "+" : ""}
-                    {pos.unrealizedPnlPercent.toFixed(2)}%
-                  </span>
-                </div>
-                <div className="mt-1.5 text-[10px] text-zinc-600">
-                  {pos.strategy} · {timeAgo(pos.entryDate)}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </ChartCard>
       </div>
@@ -242,7 +254,7 @@ export function Overview() {
       {/* Live Signal Feed */}
       <ChartCard
         title="Live Signal Feed"
-        subtitle="Auto-updating every 8s"
+        subtitle="Real-time bot signals"
         action={
           <div className="flex items-center gap-1.5 text-xs text-emerald-500">
             <Radio className="h-3 w-3" />
@@ -251,9 +263,15 @@ export function Overview() {
         }
       >
         <div ref={feedRef} className="max-h-64 overflow-y-auto space-y-2 pr-1">
-          {signals.map((signal: Signal) => (
-            <SignalItem key={signal.id} signal={signal} />
-          ))}
+          {signals.length === 0 ? (
+            <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
+              {apiConnected ? "Waiting for signals..." : "Waiting for bot connection..."}
+            </div>
+          ) : (
+            signals.map((signal: Signal) => (
+              <SignalItem key={signal.id} signal={signal} />
+            ))
+          )}
         </div>
       </ChartCard>
     </div>

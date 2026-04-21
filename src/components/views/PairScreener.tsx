@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   RefreshCw,
   Ban,
@@ -15,28 +15,9 @@ import { cn, formatUsd, timeAgo } from "@/lib/utils";
 import type { TradingPair } from "@/lib/types";
 
 export function PairScreener() {
-  const { pairs, togglePairBlacklist } = useAppStore();
+  const { pairs } = useAppStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [showBlacklisted, setShowBlacklisted] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState(0);
-  const [justRefreshed, setJustRefreshed] = useState(false);
-
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    setJustRefreshed(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setLastRefresh(Date.now());
-    }, 1500);
-    setTimeout(() => setJustRefreshed(false), 5000);
-  }, []);
-
-  // Auto-refresh every 60 seconds
-  useEffect(() => {
-    const interval = setInterval(handleRefresh, 60000);
-    return () => clearInterval(interval);
-  }, [handleRefresh]);
 
   const filteredPairs = pairs.filter((p) => {
     const matchesSearch =
@@ -58,30 +39,6 @@ export function PairScreener() {
             {pairs.filter((p) => !p.isBlacklisted).length} active pairs ·{" "}
             {pairs.filter((p) => p.isBlacklisted).length} blacklisted
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Auto-refresh indicator */}
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                justRefreshed
-                  ? "bg-emerald-500 animate-pulse"
-                  : "bg-zinc-600"
-              )}
-            />
-            <span>Updated {timeAgo(new Date(lastRefresh))}</span>
-          </div>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 rounded-lg bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw
-              className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")}
-            />
-            Refresh
-          </button>
         </div>
       </div>
 
@@ -147,19 +104,25 @@ export function PairScreener() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                   Signal
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {sortedPairs.map((pair) => (
-                <PairRow
-                  key={pair.symbol}
-                  pair={pair}
-                  onToggleBlacklist={() => togglePairBlacklist(pair.symbol)}
-                />
-              ))}
+              {sortedPairs.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
+                  >
+                    {pairs.length === 0
+                      ? "No pairs available yet"
+                      : "No pairs match the search criteria"}
+                  </td>
+                </tr>
+              ) : (
+                sortedPairs.map((pair) => (
+                  <PairRow key={pair.symbol} pair={pair} />
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -233,10 +196,8 @@ export function PairScreener() {
 
 function PairRow({
   pair,
-  onToggleBlacklist,
 }: {
   pair: TradingPair;
-  onToggleBlacklist: () => void;
 }) {
   const trendColor =
     pair.trendScore >= 70
@@ -345,20 +306,6 @@ function PairRow({
         <span className="ml-1 text-[10px] text-zinc-600">
           {timeAgo(pair.signalTime)}
         </span>
-      </td>
-      <td className="px-4 py-3">
-        <button
-          onClick={onToggleBlacklist}
-          className={cn(
-            "flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-colors",
-            pair.isBlacklisted
-              ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-              : "bg-red-500/10 text-red-400 hover:bg-red-500/20"
-          )}
-        >
-          <Ban className="h-3 w-3" />
-          {pair.isBlacklisted ? "Unban" : "Blacklist"}
-        </button>
       </td>
     </tr>
   );

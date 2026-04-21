@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   Wifi,
   WifiOff,
@@ -12,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { botApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function Settings() {
@@ -19,7 +21,6 @@ export function Settings() {
     tradingMode,
     apiConnected,
     setTradingMode,
-    setApiConnected,
     dailyLossLimit,
     maxPositions,
     maxExposure,
@@ -29,6 +30,23 @@ export function Settings() {
     notifications,
     updateNotification,
   } = useAppStore();
+
+  const handleModeChange = useCallback(
+    async (mode: "paper" | "live") => {
+      // Optimistic update
+      setTradingMode(mode);
+      // Send to API
+      await botApi.setMode(mode);
+    },
+    [setTradingMode]
+  );
+
+  const handleRiskUpdate = useCallback(
+    async (params: { daily_loss_limit?: number; max_positions?: number; max_exposure?: number }) => {
+      await botApi.updateRisk(params);
+    },
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -63,7 +81,7 @@ export function Settings() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
-            onClick={() => setTradingMode("paper")}
+            onClick={() => handleModeChange("paper")}
             className={cn(
               "rounded-lg border-2 p-4 text-left transition-all",
               tradingMode === "paper"
@@ -81,7 +99,7 @@ export function Settings() {
               <span
                 className={cn(
                   "text-sm font-semibold",
-                  tradingMode === "paper" ? "text-eminc-400" : "text-zinc-300"
+                  tradingMode === "paper" ? "text-emerald-400" : "text-zinc-300"
                 )}
               >
                 Paper Trade
@@ -94,7 +112,7 @@ export function Settings() {
           </button>
 
           <button
-            onClick={() => setTradingMode("live")}
+            onClick={() => handleModeChange("live")}
             className={cn(
               "rounded-lg border-2 p-4 text-left transition-all",
               tradingMode === "live"
@@ -155,34 +173,13 @@ export function Settings() {
             </div>
             <div>
               <h2 className="text-base font-semibold text-zinc-100">
-                API Connection
+                Bot Connection
               </h2>
               <p className="text-xs text-zinc-500">
-                Exchange API status and configuration
+                Trading bot API status
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setApiConnected(!apiConnected)}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-colors",
-              apiConnected
-                ? "bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-            )}
-          >
-            {apiConnected ? (
-              <>
-                <WifiOff className="h-3.5 w-3.5" />
-                Disconnect
-              </>
-            ) : (
-              <>
-                <Wifi className="h-3.5 w-3.5" />
-                Connect
-              </>
-            )}
-          </button>
         </div>
 
         <div className="space-y-2.5 rounded-lg bg-zinc-800/30 p-3">
@@ -194,37 +191,55 @@ export function Settings() {
                 apiConnected ? "text-emerald-400" : "text-red-400"
               )}
             >
-              <span
-                className={cn(
-                  "h-1.5 w-1.5 rounded-full",
-                  apiConnected ? "bg-emerald-500" : "bg-red-500"
-                )}
-              />
+              {apiConnected ? (
+                <Wifi className="h-3.5 w-3.5" />
+              ) : (
+                <WifiOff className="h-3.5 w-3.5" />
+              )}
               {apiConnected ? "Connected" : "Disconnected"}
             </span>
           </div>
           <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-500">Bot Status</span>
+            <span
+              className={cn(
+                "text-xs font-medium",
+                apiConnected ? "text-emerald-400" : "text-zinc-500"
+              )}
+            >
+              {apiConnected ? "Running" : "Disconnected"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-500">Mode</span>
+            <span
+              className={cn(
+                "text-xs font-medium",
+                tradingMode === "live" ? "text-amber-400" : "text-emerald-400"
+              )}
+            >
+              {tradingMode === "live" ? "Live" : "Paper"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
             <span className="text-xs text-zinc-500">Exchange</span>
-            <span className="text-xs text-zinc-300 font-medium">Binance</span>
+            <span className="text-xs text-zinc-300 font-medium">
+              Hyperliquid DEX
+            </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">API Key</span>
+            <span className="text-xs text-zinc-500">API Endpoint</span>
             <span className="text-xs text-zinc-300 font-mono">
-              ••••••••••••a4f2
+              localhost:3003
             </span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">Latency</span>
-            <span className="text-xs text-zinc-300">
-              {apiConnected ? "12ms" : "—"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">Rate Limit</span>
-            <span className="text-xs text-zinc-300">
-              {apiConnected ? "847 / 1200 (1m)" : "—"}
-            </span>
-          </div>
+          {!apiConnected && (
+            <div className="mt-2 rounded-lg bg-red-500/5 border border-red-500/10 p-2">
+              <p className="text-xs text-red-400/80">
+                Bot API is not reachable. Make sure the trading bot backend is running on port 3003.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -258,6 +273,9 @@ export function Settings() {
               onChange={(e) =>
                 setDailyLossLimit(parseFloat(e.target.value) || 0.1)
               }
+              onBlur={() =>
+                handleRiskUpdate({ daily_loss_limit: dailyLossLimit })
+              }
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors"
             />
             <p className="text-[10px] text-zinc-600 mt-1.5">
@@ -277,6 +295,9 @@ export function Settings() {
               value={maxPositions}
               onChange={(e) =>
                 setMaxPositions(parseInt(e.target.value) || 1)
+              }
+              onBlur={() =>
+                handleRiskUpdate({ max_positions: maxPositions })
               }
               className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors"
             />
@@ -298,6 +319,9 @@ export function Settings() {
                 value={maxExposure}
                 onChange={(e) =>
                   setMaxExposure(parseFloat(e.target.value) || 0.1)
+                }
+                onBlur={() =>
+                  handleRiskUpdate({ max_exposure: maxExposure })
                 }
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 pr-8 text-sm font-mono text-zinc-200 outline-none focus:border-emerald-500/50 transition-colors"
               />
@@ -428,6 +452,15 @@ export function Settings() {
       </div>
     </div>
   );
+}
+
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h ${mins}m`;
+  return `${mins}m`;
 }
 
 function NotificationRow({

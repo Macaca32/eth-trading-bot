@@ -308,90 +308,93 @@ export function TradeLog() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {filteredTrades.map((trade) => (
-                <tr
-                  key={trade.id}
-                  className="hover:bg-zinc-800/30 transition-colors"
-                >
-                  <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap">
-                    {formatDateTime(trade.exitDate)}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-zinc-200">
-                    {trade.pair}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs">
-                    {trade.strategy}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
-                        trade.side === "long"
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-red-500/15 text-red-400"
-                      )}
-                    >
-                      {trade.side}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">
-                    {trade.entryPrice.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">
-                    {trade.exitPrice.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">
-                    {trade.quantity.toFixed(4)}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-medium",
-                      trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {formatEth(trade.pnl)}
-                  </td>
-                  <td
-                    className={cn(
-                      "px-4 py-3 text-right font-medium",
-                      trade.pnlPercent >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}
-                  >
-                    {formatPercent(trade.pnlPercent)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        trade.outcome === "win" &&
-                          "bg-emerald-500/15 text-emerald-400",
-                        trade.outcome === "loss" &&
-                          "bg-red-500/15 text-red-400",
-                        trade.outcome === "breakeven" &&
-                          "bg-zinc-500/15 text-zinc-400"
-                      )}
-                    >
-                      {trade.outcome === "win"
-                        ? "✓ Win"
-                        : trade.outcome === "loss"
-                        ? "✗ Loss"
-                        : "— Tie"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">
-                    {trade.duration}
-                  </td>
-                </tr>
-              ))}
-              {filteredTrades.length === 0 && (
+              {filteredTrades.length === 0 ? (
                 <tr>
                   <td
                     colSpan={11}
-                    className="px-4 py-8 text-center text-sm text-zinc-500"
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
                   >
-                    No trades match the selected filters
+                    {trades.length === 0
+                      ? "No trades recorded yet"
+                      : "No trades match the selected filters"}
                   </td>
                 </tr>
+              ) : (
+                filteredTrades.map((trade) => (
+                  <tr
+                    key={trade.id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap">
+                      {formatDateTime(trade.exitDate)}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-zinc-200">
+                      {trade.pair}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-400 text-xs">
+                      {trade.strategy}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                          trade.side === "long"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-red-500/15 text-red-400"
+                        )}
+                      >
+                        {trade.side}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-zinc-400">
+                      {trade.entryPrice.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-zinc-400">
+                      {trade.exitPrice.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-zinc-400">
+                      {trade.quantity.toFixed(4)}
+                    </td>
+                    <td
+                      className={cn(
+                        "px-4 py-3 text-right font-medium",
+                        trade.pnl >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {formatEth(trade.pnl)}
+                    </td>
+                    <td
+                      className={cn(
+                        "px-4 py-3 text-right font-medium",
+                        trade.pnlPercent >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}
+                    >
+                      {formatPercent(trade.pnlPercent)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                          trade.outcome === "win" &&
+                            "bg-emerald-500/15 text-emerald-400",
+                          trade.outcome === "loss" &&
+                            "bg-red-500/15 text-red-400",
+                          trade.outcome === "breakeven" &&
+                            "bg-zinc-500/15 text-zinc-400"
+                        )}
+                      >
+                        {trade.outcome === "win"
+                          ? "✓ Win"
+                          : trade.outcome === "loss"
+                          ? "✗ Loss"
+                          : "— Tie"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-zinc-500">
+                      {trade.duration || "—"}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

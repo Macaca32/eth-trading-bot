@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -22,32 +22,43 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import {
-  mockParamImportance,
-  type OptimizationRun,
-} from "@/lib/mock-data";
+import { botApi } from "@/lib/api";
+import type { OptimizationRun } from "@/lib/types";
 import { ChartCard } from "@/components/ui/StatCard";
 import { cn, formatDateTime } from "@/lib/utils";
 
-export function AiOptimizer() {
-  const { optimizationRuns } = useAppStore();
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [progress, setProgress] = useState(0);
+const paramImportance = [
+  { name: "ST Multiplier", importance: 28.5 },
+  { name: "RSI Period", importance: 22.1 },
+  { name: "Stop Loss %", importance: 18.7 },
+  { name: "ATR Period", importance: 14.3 },
+  { name: "Take Profit %", importance: 9.2 },
+  { name: "Stoch K", importance: 4.8 },
+  { name: "BB StdDev", importance: 2.4 },
+];
 
-  // Simulate optimization progress
+export function AiOptimizer() {
+  const { optimizationRuns, apiConnected } = useAppStore();
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
+  const hasRunning = optimizationRuns.some((r) => r.status === "running");
+
+  // Sync local state with API data
   useEffect(() => {
-    if (!isOptimizing) return;
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          setIsOptimizing(false);
-          return 0;
-        }
-        return p + Math.random() * 8;
-      });
-    }, 500);
-    return () => clearInterval(interval);
-  }, [isOptimizing]);
+    if (hasRunning) {
+      setIsOptimizing(true);
+    } else {
+      setIsOptimizing(false);
+    }
+  }, [hasRunning]);
+
+  const handleStartOptimization = useCallback(async () => {
+    setIsOptimizing(true);
+    const success = await botApi.startOptimization();
+    if (!success) {
+      setIsOptimizing(false);
+    }
+  }, []);
 
   const latestRun = optimizationRuns[0];
   const bestRun = optimizationRuns
@@ -75,10 +86,7 @@ export function AiOptimizer() {
           </p>
         </div>
         <button
-          onClick={() => {
-            setIsOptimizing(true);
-            setProgress(0);
-          }}
+          onClick={handleStartOptimization}
           disabled={isOptimizing}
           className={cn(
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
@@ -90,7 +98,7 @@ export function AiOptimizer() {
           {isOptimizing ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Optimizing... {Math.min(100, Math.round(progress))}%
+              Optimizing...
             </>
           ) : (
             <>
@@ -144,37 +152,27 @@ export function AiOptimizer() {
             </span>
           </div>
           <p className="text-2xl font-bold text-emerald-400">
-            +
-            {Math.max(
-              ...optimizationRuns.map((r) => r.improvement)
-            ).toFixed(1)}
-            %
+            {optimizationRuns.length > 0
+              ? `+${Math.max(...optimizationRuns.map((r) => r.improvement)).toFixed(1)}%`
+              : "—"}
           </p>
           <p className="text-xs text-zinc-500 mt-1">Sharpe ratio gain</p>
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Running indicator */}
       {isOptimizing && (
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-emerald-400">
-              Optimization in Progress...
-            </span>
-            <span className="text-sm font-mono text-emerald-400">
-              {Math.min(100, Math.round(progress))}%
-            </span>
-          </div>
-          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-300"
-              style={{ width: `${Math.min(100, progress)}%` }}
-            />
-          </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-zinc-500">
-            <span>Strategy: StochRSI + Supertrend</span>
-            <span>Iterations: {Math.round(progress * 7)}</span>
-            <span>Est. time: {Math.max(0, 5 - Math.round(progress / 20))}m</span>
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
+            <div>
+              <p className="text-sm font-medium text-emerald-400">
+                Optimization in Progress...
+              </p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                The bot is running parameter optimization. Results will appear here when complete.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -188,7 +186,7 @@ export function AiOptimizer() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height={240} minWidth={300}>
               <BarChart
-                data={mockParamImportance}
+                data={paramImportance}
                 layout="vertical"
                 margin={{ left: 10 }}
               >
@@ -225,7 +223,7 @@ export function AiOptimizer() {
                   ]}
                 />
                 <Bar dataKey="importance" radius={[0, 4, 4, 0]} barSize={16}>
-                  {mockParamImportance.map((_, index) => (
+                  {paramImportance.map((_, index) => (
                     <Cell key={index} fill={paramColors[index % paramColors.length]} />
                   ))}
                 </Bar>
@@ -314,42 +312,53 @@ export function AiOptimizer() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {optimizationRuns.map((run) => (
-                <tr
-                  key={run.id}
-                  className="hover:bg-zinc-800/30 transition-colors"
-                >
-                  <td className="px-4 py-3 text-zinc-200 font-medium">
-                    {run.strategy}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={run.status} />
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400">
-                    {run.iterations}
-                  </td>
-                  <td className="px-4 py-3 text-emerald-400 font-medium">
-                    {run.bestSharpe.toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "font-medium",
-                        run.improvement > 0 ? "text-emerald-400" : "text-zinc-500"
-                      )}
-                    >
-                      {run.improvement > 0
-                        ? `+${run.improvement.toFixed(1)}%`
-                        : "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {run.endTime
-                      ? formatDateTime(run.endTime)
-                      : "In progress..."}
+              {optimizationRuns.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center text-sm text-zinc-500"
+                  >
+                    No optimization runs yet
                   </td>
                 </tr>
-              ))}
+              ) : (
+                optimizationRuns.map((run) => (
+                  <tr
+                    key={run.id}
+                    className="hover:bg-zinc-800/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-zinc-200 font-medium">
+                      {run.strategy}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={run.status} />
+                    </td>
+                    <td className="px-4 py-3 text-zinc-400">
+                      {run.iterations}
+                    </td>
+                    <td className="px-4 py-3 text-emerald-400 font-medium">
+                      {run.bestSharpe.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          "font-medium",
+                          run.improvement > 0 ? "text-emerald-400" : "text-zinc-500"
+                        )}
+                      >
+                        {run.improvement > 0
+                          ? `+${run.improvement.toFixed(1)}%`
+                          : "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-500 text-xs">
+                      {run.endTime
+                        ? formatDateTime(run.endTime)
+                        : "In progress..."}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

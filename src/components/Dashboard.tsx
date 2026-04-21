@@ -1,6 +1,7 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { useBotApi } from "@/lib/useBotApi";
 import { Sidebar } from "./Sidebar";
 import { Overview } from "./views/Overview";
 import { Tutorial } from "./views/Tutorial";
@@ -10,7 +11,7 @@ import { PairScreener } from "./views/PairScreener";
 import { TradeLog } from "./views/TradeLog";
 import { RiskMonitor } from "./views/RiskMonitor";
 import { Settings } from "./views/Settings";
-import { Menu, TrendingUp } from "lucide-react";
+import { Menu, TrendingUp, WifiOff, Wifi } from "lucide-react";
 import type { ViewName } from "@/lib/store";
 import { useEffect, useState } from "react";
 
@@ -27,9 +28,12 @@ const viewComponents: Record<ViewName, React.ComponentType> = {
 
 
 export function Dashboard() {
-  const { activeView, setSidebarOpen, tradingMode } = useAppStore();
+  const { activeView, setSidebarOpen, tradingMode, apiConnected } = useAppStore();
   const ActiveView = viewComponents[activeView];
   const [mounted, setMounted] = useState(false);
+
+  // Start fetching data from bot API
+  useBotApi();
 
   useEffect(() => {
     setMounted(true);
@@ -66,14 +70,30 @@ export function Dashboard() {
               ETH Trading Bot
             </span>
           </div>
-          <div
-            className={`rounded-full px-2 py-1 text-[10px] font-medium ${
-              tradingMode === "paper"
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-amber-500/10 text-amber-400"
-            }`}
-          >
-            {tradingMode === "paper" ? "Paper" : "Live"}
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-medium ${
+                apiConnected
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-red-500/10 text-red-400"
+              }`}
+            >
+              {apiConnected ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+              {apiConnected ? "Connected" : "Disconnected"}
+            </div>
+            <div
+              className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                tradingMode === "paper"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-amber-500/10 text-amber-400"
+              }`}
+            >
+              {tradingMode === "paper" ? "Paper" : "Live"}
+            </div>
           </div>
         </header>
 
