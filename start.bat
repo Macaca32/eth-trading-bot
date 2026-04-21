@@ -221,20 +221,14 @@ if not exist "%PROJECT_DIR%\node_modules" (
     echo  [OK]   node_modules already exists.
 )
 
-REM Build Next.js
-if not exist "%PROJECT_DIR%\.next" (
-    echo  Building Next.js dashboard...
-    cd /d "%PROJECT_DIR%"
-    call %NODE% run build
-    if errorlevel 1 (
-        echo  [WARN] Build failed. Dashboard will use dev mode.
-        set "DASHBOARD_BUILD_OK=0"
-    ) else (
-        set "DASHBOARD_BUILD_OK=1"
-    )
-    echo  [OK]   Dashboard setup complete.
+REM Build Next.js (always rebuild to get latest changes)
+echo  Building Next.js dashboard...
+cd /d "%PROJECT_DIR%"
+call %NODE% run build
+if errorlevel 1 (
+    echo  [WARN] Build failed. Dashboard will use dev mode.
 ) else (
-    echo  [OK]   Dashboard already built. ^(delete .next folder to rebuild^)
+    echo  [OK]   Dashboard build complete.
 )
 echo.
 
