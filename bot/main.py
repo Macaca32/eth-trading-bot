@@ -508,16 +508,20 @@ async def async_main() -> None:
         import threading
         from api_server import run_api_server
 
-        # Start API server in a separate thread
+        # Pre-initialize database so API server can query it immediately
+        bot._db = Database(config.data.sqlite_db_path)
+
+        # Start API server in a separate thread (bot reference passed by pointer,
+        # so strategies become visible once bot.start() populates them)
         api_thread = threading.Thread(
             target=run_api_server,
-            kwargs={"port": args.port},
+            kwargs={"port": args.port, "bot": bot, "config": config, "db": bot._db},
             daemon=True,
         )
         api_thread.start()
         logger.info("API server starting on port {} (bot + API mode)", args.port)
 
-        # Start the bot
+        # Start the bot (populates bot._strategies, connects exchange, etc.)
         await bot.start()
     else:
         # Normal bot mode

@@ -597,12 +597,16 @@ class BotAPIServer:
 # Standalone runner
 # ---------------------------------------------------------------------------
 
-def run_api_server(host: str = "0.0.0.0", port: int = 3003) -> None:
-    """Run the API server standalone (without the trading bot)."""
+def run_api_server(host: str = "0.0.0.0", port: int = 3003, bot=None, config=None, db=None) -> None:
+    """Run the API server (optionally with bot reference for live data)."""
     import uvicorn
 
-    logger.info("Starting API server in standalone mode (no bot attached)")
-    server = BotAPIServer()
+    if bot is not None:
+        logger.info("Starting API server with bot attached (live data mode)")
+    else:
+        logger.info("Starting API server in standalone mode (no bot attached)")
+
+    server = BotAPIServer(bot=bot, config=config, db=db)
     app = server.create_app()
 
     uvicorn.run(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { useAppStore } from "./store";
 import { botApi, type ApiPosition, type ApiTrade, type ApiSignal, type ApiStrategy, type ApiRisk, type ApiPair, type ApiOptimization, type ApiEquityPoint, type ApiDailyPnl } from "./api";
 import type { Position, Trade, Signal, Strategy, TradingPair, EquityPoint, DailyPnl, OptimizationRun, RiskMetrics } from "./types";
@@ -148,118 +148,135 @@ function mapOptimization(o: ApiOptimization): OptimizationRun {
   };
 }
 
+/**
+ * Fetch all data from the Bot API and update the Zustand store.
+ *
+ * Uses useAppStore.getState() instead of useAppStore() to avoid
+ * subscribing to store changes — this prevents the infinite re-render
+ * loop that was causing CPU spikes and rapid API polling.
+ */
+async function fetchAllData() {
+  const store = useAppStore.getState();
+
+  try {
+    // Fetch status first to check connection
+    const status = await botApi.getStatus();
+    if (status && "status" in status && (status as Record<string, unknown>).status !== undefined) {
+      store.setApiConnected(true);
+      if ("mode" in status) {
+        store.setTradingMode((status as { mode: "paper" | "live" }).mode);
+      }
+    }
+  } catch {
+    store.setApiConnected(false);
+  }
+
+  // Fetch all data in parallel
+  const [positions, trades, signals, strategies, risk, pairs, optimizations, equity, dailyPnl] = await Promise.all([
+    botApi.getPositions(),
+    botApi.getTrades(),
+    botApi.getSignals(),
+    botApi.getStrategies(),
+    botApi.getRisk(),
+    botApi.getPairs(),
+    botApi.getOptimizations(),
+    botApi.getEquity(),
+    botApi.getDailyPnl(),
+  ]);
+
+  // Update store with real data (only if we got valid data back)
+  if (Array.isArray(positions) && positions.length > 0) {
+    store._setPositions((positions as ApiPosition[]).map(mapPosition));
+  } else if (Array.isArray(positions) && positions.length === 0) {
+    store._setPositions([]);
+  }
+
+  if (Array.isArray(trades) && trades.length > 0) {
+    store._setTrades((trades as ApiTrade[]).map(mapTrade));
+  } else if (Array.isArray(trades) && trades.length === 0) {
+    store._setTrades([]);
+  }
+
+  if (Array.isArray(signals) && signals.length > 0) {
+    store._setSignals((signals as ApiSignal[]).map(mapSignal));
+  } else if (Array.isArray(signals) && signals.length === 0) {
+    store._setSignals([]);
+  }
+
+  if (Array.isArray(strategies) && strategies.length > 0) {
+    store._setStrategies((strategies as ApiStrategy[]).map(mapStrategy));
+  }
+
+  if (risk && typeof risk === "object" && "dailyPnl" in (risk as object)) {
+    store._setRiskMetrics(mapRisk(risk as ApiRisk));
+  }
+
+  if (Array.isArray(pairs) && pairs.length > 0) {
+    store._setPairs((pairs as ApiPair[]).map(mapPair));
+  } else if (Array.isArray(pairs) && pairs.length === 0) {
+    store._setPairs([]);
+  }
+
+  if (Array.isArray(optimizations) && optimizations.length > 0) {
+    store._setOptimizations((optimizations as ApiOptimization[]).map(mapOptimization));
+  } else if (Array.isArray(optimizations) && optimizations.length === 0) {
+    store._setOptimizations([]);
+  }
+
+  if (Array.isArray(equity) && equity.length > 0) {
+    store._setEquityCurve((equity as ApiEquityPoint[]).map((e: ApiEquityPoint) => ({
+      date: e.date,
+      equity: e.equity,
+      drawdown: e.drawdown,
+      benchmark: e.benchmark,
+    })));
+  } else if (Array.isArray(equity) && equity.length === 0) {
+    store._setEquityCurve([]);
+  }
+
+  if (Array.isArray(dailyPnl) && dailyPnl.length > 0) {
+    store._setDailyPnl((dailyPnl as ApiDailyPnl[]).map((d: ApiDailyPnl) => ({
+      date: d.date,
+      pnl: d.pnl,
+      cumulative: d.cumulative,
+      trades: d.trades,
+    })));
+  } else if (Array.isArray(dailyPnl) && dailyPnl.length === 0) {
+    store._setDailyPnl([]);
+  }
+}
+
 export function useBotApi() {
   const wsRef = useRef<WebSocket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const store = useAppStore();
+  const mountedRef = useRef(true);
 
-  const fetchAll = useCallback(async () => {
-    try {
-      // Fetch status first to check connection
-      const status = await botApi.getStatus();
-      if (status && "status" in status && (status as Record<string, unknown>).status !== undefined) {
-        store.setApiConnected(true);
-        if ("mode" in status) {
-          store.setTradingMode((status as { mode: "paper" | "live" }).mode);
-        }
-      }
-    } catch {
-      store.setApiConnected(false);
-    }
-
-    // Fetch all data in parallel
-    const [positions, trades, signals, strategies, risk, pairs, optimizations, equity, dailyPnl] = await Promise.all([
-      botApi.getPositions(),
-      botApi.getTrades(),
-      botApi.getSignals(),
-      botApi.getStrategies(),
-      botApi.getRisk(),
-      botApi.getPairs(),
-      botApi.getOptimizations(),
-      botApi.getEquity(),
-      botApi.getDailyPnl(),
-    ]);
-
-    // Update store with real data (only if we got valid data back)
-    if (Array.isArray(positions) && positions.length > 0) {
-      store._setPositions((positions as ApiPosition[]).map(mapPosition));
-    } else if (Array.isArray(positions) && positions.length === 0) {
-      store._setPositions([]); // Clear mock data — no real positions
-    }
-
-    if (Array.isArray(trades) && trades.length > 0) {
-      store._setTrades((trades as ApiTrade[]).map(mapTrade));
-    } else if (Array.isArray(trades) && trades.length === 0) {
-      store._setTrades([]);
-    }
-
-    if (Array.isArray(signals) && signals.length > 0) {
-      store._setSignals((signals as ApiSignal[]).map(mapSignal));
-    } else if (Array.isArray(signals) && signals.length === 0) {
-      store._setSignals([]);
-    }
-
-    if (Array.isArray(strategies) && strategies.length > 0) {
-      store._setStrategies((strategies as ApiStrategy[]).map(mapStrategy));
-    }
-
-    if (risk && typeof risk === "object" && "dailyPnl" in (risk as object)) {
-      store._setRiskMetrics(mapRisk(risk as ApiRisk));
-    }
-
-    if (Array.isArray(pairs) && pairs.length > 0) {
-      store._setPairs((pairs as ApiPair[]).map(mapPair));
-    } else if (Array.isArray(pairs) && pairs.length === 0) {
-      store._setPairs([]);
-    }
-
-    if (Array.isArray(optimizations) && optimizations.length > 0) {
-      store._setOptimizations((optimizations as ApiOptimization[]).map(mapOptimization));
-    } else if (Array.isArray(optimizations) && optimizations.length === 0) {
-      store._setOptimizations([]);
-    }
-
-    if (Array.isArray(equity) && equity.length > 0) {
-      store._setEquityCurve((equity as ApiEquityPoint[]).map((e: ApiEquityPoint) => ({
-        date: e.date,
-        equity: e.equity,
-        drawdown: e.drawdown,
-        benchmark: e.benchmark,
-      })));
-    } else if (Array.isArray(equity) && equity.length === 0) {
-      store._setEquityCurve([]);
-    }
-
-    if (Array.isArray(dailyPnl) && dailyPnl.length > 0) {
-      store._setDailyPnl((dailyPnl as ApiDailyPnl[]).map((d: ApiDailyPnl) => ({
-        date: d.date,
-        pnl: d.pnl,
-        cumulative: d.cumulative,
-        trades: d.trades,
-      })));
-    } else if (Array.isArray(dailyPnl) && dailyPnl.length === 0) {
-      store._setDailyPnl([]);
-    }
-  }, [store]);
+  // Subscribe only to apiConnected for the return value (stable selector)
+  const apiConnected = useAppStore((s) => s.apiConnected);
 
   useEffect(() => {
-    // Initial fetch
-    fetchAll();
+    mountedRef.current = true;
 
-    // Poll every 10 seconds
-    pollRef.current = setInterval(fetchAll, 10000);
+    // Initial fetch
+    fetchAllData();
+
+    // Poll every 10 seconds — stable reference, no re-render loop
+    pollRef.current = setInterval(fetchAllData, 10000);
 
     // WebSocket for real-time updates
+    const store = useAppStore.getState();
     try {
       const ws = new WebSocket("ws://localhost:3003/ws");
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (!mountedRef.current) return;
         store.setApiConnected(true);
         ws.send(JSON.stringify({ type: "subscribe", channels: ["trades", "signals", "positions"] }));
       };
 
       ws.onmessage = (event) => {
+        if (!mountedRef.current) return;
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "trades" && Array.isArray(msg.data)) {
@@ -275,9 +292,11 @@ export function useBotApi() {
       };
 
       ws.onclose = () => {
+        if (!mountedRef.current) return;
         store.setApiConnected(false);
         // Reconnect after 5 seconds
         setTimeout(() => {
+          if (!mountedRef.current) return;
           if (wsRef.current === ws) {
             const newWs = new WebSocket("ws://localhost:3003/ws");
             wsRef.current = newWs;
@@ -292,13 +311,14 @@ export function useBotApi() {
     }
 
     return () => {
+      mountedRef.current = false;
       if (pollRef.current) clearInterval(pollRef.current);
       if (wsRef.current) {
         wsRef.current.onclose = null; // Prevent reconnect
         wsRef.current.close();
       }
     };
-  }, [fetchAll, store]);
+  }, []); // Empty deps — runs ONCE on mount, never recreates
 
-  return { fetchAll, refetch: fetchAll };
+  return { fetchAll: fetchAllData, refetch: fetchAllData, apiConnected };
 }
