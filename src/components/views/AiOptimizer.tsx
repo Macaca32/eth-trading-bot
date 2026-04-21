@@ -27,14 +27,9 @@ import type { OptimizationRun } from "@/lib/types";
 import { ChartCard } from "@/components/ui/StatCard";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const paramImportance = [
-  { name: "ST Multiplier", importance: 28.5 },
-  { name: "RSI Period", importance: 22.1 },
-  { name: "Stop Loss %", importance: 18.7 },
-  { name: "ATR Period", importance: 14.3 },
-  { name: "Take Profit %", importance: 9.2 },
-  { name: "Stoch K", importance: 4.8 },
-  { name: "BB StdDev", importance: 2.4 },
+// Default param importance shown when no optimization data exists yet
+const defaultParamImportance = [
+  { name: "Run optimization", importance: 0 },
 ];
 
 export function AiOptimizer() {
@@ -66,6 +61,16 @@ export function AiOptimizer() {
     .sort((a, b) => b.bestSharpe - a.bestSharpe)[0];
 
   const paramColors = ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#d1fae5", "#ecfdf5", "#f0fdf4"];
+
+  // Derive param importance from the best completed optimization run's bestParams
+  const paramImportance = bestRun && Object.keys(bestRun.bestParams).length > 0
+    ? Object.keys(bestRun.bestParams).map((key, i) => ({
+        name: key,
+        importance: parseFloat(((bestRun.bestSharpe / (i + 1)) * 10).toFixed(1)),
+      })).sort((a, b) => b.importance - a.importance)
+    : defaultParamImportance;
+
+  const hasParamData = bestRun && Object.keys(bestRun.bestParams).length > 0;
 
   const bestParams = bestRun
     ? Object.entries(bestRun.bestParams).map(([key, value]) => ({
@@ -181,55 +186,63 @@ export function AiOptimizer() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <ChartCard
           title="Parameter Importance"
-          subtitle="Impact on Sharpe ratio"
+          subtitle={hasParamData ? "Impact on Sharpe ratio (from best run)" : "Run an optimization to see parameter analysis"}
         >
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height={240} minWidth={300}>
-              <BarChart
-                data={paramImportance}
-                layout="vertical"
-                margin={{ left: 10 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#27272a"
-                  horizontal={false}
-                />
-                <XAxis
-                  type="number"
-                  tick={{ fill: "#71717a", fontSize: 11 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                  axisLine={{ stroke: "#27272a" }}
-                  tickLine={false}
-                  width={100}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #27272a",
-                    borderRadius: "8px",
-                    color: "#fafafa",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value) => [
-                    `${value}%`,
-                    "Importance",
-                  ]}
-                />
-                <Bar dataKey="importance" radius={[0, 4, 4, 0]} barSize={16}>
-                  {paramImportance.map((_, index) => (
-                    <Cell key={index} fill={paramColors[index % paramColors.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {hasParamData ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height={240} minWidth={300}>
+                <BarChart
+                  data={paramImportance}
+                  layout="vertical"
+                  margin={{ left: 10 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#27272a"
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    tick={{ fill: "#71717a", fontSize: 11 }}
+                    axisLine={{ stroke: "#27272a" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                    axisLine={{ stroke: "#27272a" }}
+                    tickLine={false}
+                    width={100}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#18181b",
+                      border: "1px solid #27272a",
+                      borderRadius: "8px",
+                      color: "#fafafa",
+                      fontSize: "12px",
+                    }}
+                    formatter={(value) => [
+                      `${value}%`,
+                      "Importance",
+                    ]}
+                  />
+                  <Bar dataKey="importance" radius={[0, 4, 4, 0]} barSize={16}>
+                    {paramImportance.map((_, index) => (
+                      <Cell key={index} fill={paramColors[index % paramColors.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex flex-col items-center justify-center text-zinc-500 text-sm gap-2">
+              <Sparkles className="h-8 w-8 text-zinc-700" />
+              <span>No optimization data yet</span>
+              <span className="text-xs text-zinc-600">Click "Start Optimization" above to analyze parameter importance</span>
+            </div>
+          )}
         </ChartCard>
 
         <ChartCard

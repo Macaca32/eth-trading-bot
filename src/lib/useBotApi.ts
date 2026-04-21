@@ -24,6 +24,21 @@ function mapPosition(p: ApiPosition): Position {
 }
 
 function mapTrade(t: ApiTrade): Trade {
+  // Compute human-readable duration from entry/exit dates
+  let duration = "";
+  if (t.entry_date && t.exit_date) {
+    const entryMs = new Date(t.entry_date).getTime();
+    const exitMs = new Date(t.exit_date).getTime();
+    const diffMin = Math.max(0, Math.floor((exitMs - entryMs) / 60000));
+    if (diffMin < 60) {
+      duration = `${diffMin}m`;
+    } else if (diffMin < 1440) {
+      duration = `${Math.floor(diffMin / 60)}h ${diffMin % 60}m`;
+    } else {
+      duration = `${Math.floor(diffMin / 1440)}d ${Math.floor((diffMin % 1440) / 60)}h`;
+    }
+  }
+
   return {
     id: t.id,
     pair: t.pair,
@@ -37,7 +52,7 @@ function mapTrade(t: ApiTrade): Trade {
     outcome: t.outcome as "win" | "loss" | "breakeven",
     entryDate: t.entry_date,
     exitDate: t.exit_date ?? "",
-    duration: "",
+    duration,
     fees: t.fees,
   };
 }

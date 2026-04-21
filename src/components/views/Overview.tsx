@@ -71,39 +71,35 @@ export function Overview() {
         )}
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — trends computed from real API data */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total P&L"
           value={formatEth(riskMetrics.monthlyPnl)}
           subtitle="Last 30 days"
           icon={TrendingUp}
-          trend="up"
-          trendValue="+12.4%"
+          {...computePnlTrend(riskMetrics.monthlyPnl, riskMetrics.weeklyPnl)}
         />
         <StatCard
           title="Win Rate"
           value={`${riskMetrics.winRate.toFixed(1)}%`}
-          subtitle={`${riskMetrics.consecutiveWins} wins streak`}
+          subtitle={riskMetrics.consecutiveWins > 0 ? `${riskMetrics.consecutiveWins} wins streak` : "No streak"}
           icon={Target}
-          trend="up"
-          trendValue="+2.1%"
+          {...(riskMetrics.winRate > 0 ? { trend: "up" as const, trendValue: `${riskMetrics.winRate.toFixed(1)}%` } : {})}
         />
         <StatCard
           title="Sharpe Ratio"
           value={riskMetrics.sharpeRatio.toFixed(2)}
           subtitle="Risk-adjusted return"
           icon={Activity}
-          trend="up"
-          trendValue="+0.18"
+          {...computeSharpeTrend(riskMetrics.sharpeRatio)}
         />
         <StatCard
           title="Max Drawdown"
-          value={`-${riskMetrics.maxDrawdown.toFixed(2)}%`}
-          subtitle={`Current: -${riskMetrics.currentDrawdown.toFixed(2)}%`}
+          value={riskMetrics.maxDrawdown > 0 ? `-${riskMetrics.maxDrawdown.toFixed(2)}%` : "0.00%"}
+          subtitle={`Current: ${riskMetrics.currentDrawdown > 0 ? `-${riskMetrics.currentDrawdown.toFixed(2)}%` : "0.00%"}`}
           icon={AlertTriangle}
-          trend="down"
-          trendValue="Controlling"
+          {...computeDrawdownTrend(riskMetrics.maxDrawdown, riskMetrics.currentDrawdown)}
         />
       </div>
 
@@ -276,6 +272,34 @@ export function Overview() {
       </ChartCard>
     </div>
   );
+}
+
+// --- Trend computation helpers (derived from real API data) ---
+
+function computePnlTrend(monthlyPnl: number, weeklyPnl: number) {
+  if (monthlyPnl === 0 && weeklyPnl === 0) return {};
+  if (weeklyPnl > 0) return { trend: "up" as const, trendValue: `+${weeklyPnl.toFixed(4)} this week` };
+  if (weeklyPnl < 0) return { trend: "down" as const, trendValue: `${weeklyPnl.toFixed(4)} this week` };
+  return { trend: "neutral" as const, trendValue: "Flat this week" };
+}
+
+function computeSharpeTrend(sharpeRatio: number) {
+  if (sharpeRatio === 0) return {};
+  if (sharpeRatio >= 2) return { trend: "up" as const, trendValue: "Excellent" };
+  if (sharpeRatio >= 1) return { trend: "up" as const, trendValue: "Good" };
+  if (sharpeRatio >= 0.5) return { trend: "neutral" as const, trendValue: "Moderate" };
+  return { trend: "down" as const, trendValue: "Low" };
+}
+
+function computeDrawdownTrend(maxDrawdown: number, currentDrawdown: number) {
+  if (maxDrawdown === 0 && currentDrawdown === 0) return {};
+  if (maxDrawdown > 0 && currentDrawdown > 0) {
+    const pctOfMax = (currentDrawdown / maxDrawdown) * 100;
+    if (pctOfMax < 30) return { trend: "neutral" as const, trendValue: "Recovering" };
+    return { trend: "down" as const, trendValue: `${pctOfMax.toFixed(0)}% of max` };
+  }
+  if (maxDrawdown > 0 && currentDrawdown === 0) return { trend: "neutral" as const, trendValue: "Recovered" };
+  return {};
 }
 
 function SignalItem({ signal }: { signal: Signal }) {

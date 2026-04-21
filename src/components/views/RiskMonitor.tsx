@@ -26,8 +26,10 @@ import { ChartCard } from "@/components/ui/StatCard";
 import { cn, formatEth } from "@/lib/utils";
 
 export function RiskMonitor() {
-  const { riskMetrics, pairRiskAllocations, dailyPnl, apiConnected } = useAppStore();
-  const exposurePercent = (riskMetrics.totalExposure / riskMetrics.maxExposure) * 100;
+  const { riskMetrics, positions, dailyPnl, apiConnected } = useAppStore();
+  const exposurePercent = riskMetrics.maxExposure > 0
+    ? (riskMetrics.totalExposure / riskMetrics.maxExposure) * 100
+    : 0;
 
   const dailyPnlData = dailyPnl.map((d) => ({
     ...d,
@@ -389,12 +391,12 @@ export function RiskMonitor() {
         )}
       </ChartCard>
 
-      {/* Per-Pair Risk Allocation */}
+      {/* Position Risk Breakdown */}
       <ChartCard
-        title="Per-Pair Risk Allocation"
-        subtitle="Risk budget distribution across pairs"
+        title="Position Risk Breakdown"
+        subtitle="Real-time risk per open position"
       >
-        {pairRiskAllocations.length > 0 ? (
+        {positions.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -403,58 +405,81 @@ export function RiskMonitor() {
                     Pair
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Allocation
+                    Side
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Used
+                    Strategy
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Unrealized P&L
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    P&L %
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Max Loss
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Usage
+                    Risk Level
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800/50">
-                {pairRiskAllocations.map((alloc) => {
-                  const usagePercent = (alloc.used / alloc.allocated) * 100;
+                {positions.map((pos) => {
+                  const riskLevel = Math.abs(pos.unrealizedPnlPercent);
+                  const riskLabel =
+                    riskLevel > 5 ? "High" :
+                    riskLevel > 2 ? "Medium" : "Low";
+                  const riskColor =
+                    riskLevel > 5 ? "text-red-400 bg-red-500/15" :
+                    riskLevel > 2 ? "text-amber-400 bg-amber-500/15" :
+                    "text-emerald-400 bg-emerald-500/15";
                   return (
                     <tr
-                      key={alloc.pair}
+                      key={pos.id}
                       className="hover:bg-zinc-800/30 transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-zinc-200">
-                        {alloc.pair}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-400">
-                        {alloc.allocated}%
-                      </td>
-                      <td className="px-4 py-3 text-zinc-300">
-                        {alloc.used}%
-                      </td>
-                      <td className="px-4 py-3 text-amber-400">
-                        {alloc.maxLoss} ETH
+                        {pos.pair}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div
-                              className={cn(
-                                "h-full rounded-full",
-                                usagePercent >= 80
-                                  ? "bg-red-500"
-                                  : usagePercent >= 60
-                                  ? "bg-amber-500"
-                                  : "bg-emerald-500"
-                              )}
-                              style={{ width: `${usagePercent}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-zinc-500">
-                            {usagePercent.toFixed(0)}%
-                          </span>
-                        </div>
+                        <span
+                          className={cn(
+                            "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase",
+                            pos.side === "long"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-red-500/15 text-red-400"
+                          )}
+                        >
+                          {pos.side}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400 text-xs">
+                        {pos.strategy}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right font-medium",
+                          pos.unrealizedPnl >= 0 ? "text-emerald-400" : "text-red-400"
+                        )}
+                      >
+                        {formatEth(pos.unrealizedPnl)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right font-medium",
+                          pos.unrealizedPnlPercent >= 0 ? "text-emerald-400" : "text-red-400"
+                        )}
+                      >
+                        {pos.unrealizedPnlPercent >= 0 ? "+" : ""}
+                        {pos.unrealizedPnlPercent.toFixed(2)}%
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                            riskColor
+                          )}
+                        >
+                          {riskLabel}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -464,7 +489,7 @@ export function RiskMonitor() {
           </div>
         ) : (
           <div className="flex items-center justify-center h-32 text-zinc-500 text-sm">
-            No pair risk allocation data
+            {apiConnected ? "No open positions — no position risk to display" : "Waiting for bot connection..."}
           </div>
         )}
       </ChartCard>
