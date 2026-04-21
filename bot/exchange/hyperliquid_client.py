@@ -139,10 +139,20 @@ class HyperliquidClient:
         url = f"{self._base_url}{endpoint}"
         try:
             async with session.post(url, json=payload) as resp:
-                data = await resp.json()
+                content_type = resp.headers.get("Content-Type", "")
                 if resp.status != 200:
-                    logger.error("API error {} on {}: {}", resp.status, endpoint, data)
+                    # Testnet sometimes returns non-JSON responses (text/plain)
+                    if "text/plain" in content_type:
+                        logger.warning("API {} returned {} (non-JSON), skipping", endpoint, resp.status)
+                        return {}
+                    text = await resp.text()
+                    logger.error("API error {} on {}: {}", resp.status, endpoint, text)
+                    return {}
+                data = await resp.json()
                 return data
+        except aiohttp.ContentTypeError:
+            logger.warning("API {} returned non-JSON response, skipping", endpoint)
+            return {}
         except aiohttp.ClientError as exc:
             logger.error("HTTP error on {}: {}", endpoint, exc)
             raise
@@ -153,10 +163,19 @@ class HyperliquidClient:
         url = f"{self._base_url}{endpoint}"
         try:
             async with session.get(url, params=params) as resp:
-                data = await resp.json()
+                content_type = resp.headers.get("Content-Type", "")
                 if resp.status != 200:
-                    logger.error("API error {} on {}: {}", resp.status, endpoint, data)
+                    if "text/plain" in content_type:
+                        logger.warning("API {} returned {} (non-JSON), skipping", endpoint, resp.status)
+                        return {}
+                    text = await resp.text()
+                    logger.error("API error {} on {}: {}", resp.status, endpoint, text)
+                    return {}
+                data = await resp.json()
                 return data
+        except aiohttp.ContentTypeError:
+            logger.warning("API {} returned non-JSON response, skipping", endpoint)
+            return {}
         except aiohttp.ClientError as exc:
             logger.error("HTTP error on {}: {}", endpoint, exc)
             raise

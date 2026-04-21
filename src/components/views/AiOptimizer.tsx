@@ -49,9 +49,12 @@ export function AiOptimizer() {
 
   const handleStartOptimization = useCallback(async () => {
     setIsOptimizing(true);
-    const success = await botApi.startOptimization();
-    if (!success) {
+    const result = await botApi.startOptimization();
+    if (!result || result.success === false) {
       setIsOptimizing(false);
+    } else {
+      // Optimization accepted by backend — auto-reset after 5 minutes as fallback
+      setTimeout(() => setIsOptimizing(false), 5 * 60 * 1000);
     }
   }, []);
 
