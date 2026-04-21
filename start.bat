@@ -302,6 +302,8 @@ echo  Dashboard runs in a separate window.
 echo.
 REM Launch dashboard in new window
 start "ETH Dashboard - http://localhost:3000" cmd /c "cd /d %PROJECT_DIR% && %NODE% start"
+REM Auto-open browser when dashboard is ready (runs minimized, exits after opening)
+start /min "" "%PROJECT_DIR%open-browser.bat"
 REM Launch bot in this window
 cd /d "%BOT_DIR%"
 call "%VENV_DIR%\Scripts\activate.bat"
@@ -344,6 +346,8 @@ echo.
 echo  Close this window to stop the dashboard.
 echo.
 cd /d "%PROJECT_DIR%"
+REM Auto-open browser when dashboard is ready (runs minimized, exits after opening)
+start /min "" "%PROJECT_DIR%open-browser.bat"
 %NODE% start
 goto :done
 
