@@ -101,7 +101,7 @@ class StrategyOptimizer:
         study = optuna.create_study(
             study_name=name,
             direction="maximize",
-            sampler=optuna.samplers.TPE(seed=42),
+            sampler=optuna.samplers.TPESampler(seed=42),
         )
 
         # Define objective
