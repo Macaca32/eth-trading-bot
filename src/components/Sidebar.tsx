@@ -4,6 +4,7 @@ import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { ViewName } from "@/lib/store";
 import {
+  BookOpen,
   LayoutDashboard,
   Bot,
   Sparkles,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 const navItems: { id: ViewName; label: string; icon: React.ElementType }[] = [
+  { id: "tutorial", label: "Tutorial", icon: BookOpen },
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "strategies", label: "Strategies", icon: Bot },
   { id: "ai-optimizer", label: "AI Optimizer", icon: Sparkles },

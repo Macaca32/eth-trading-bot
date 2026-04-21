@@ -24,6 +24,7 @@ import {
 } from "./mock-data";
 
 export type ViewName =
+  | "tutorial"
   | "overview"
   | "strategies"
   | "ai-optimizer"

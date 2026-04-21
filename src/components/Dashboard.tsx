@@ -3,6 +3,7 @@
 import { useAppStore } from "@/lib/store";
 import { Sidebar } from "./Sidebar";
 import { Overview } from "./views/Overview";
+import { Tutorial } from "./views/Tutorial";
 import { Strategies } from "./views/Strategies";
 import { AiOptimizer } from "./views/AiOptimizer";
 import { PairScreener } from "./views/PairScreener";
@@ -14,6 +15,7 @@ import type { ViewName } from "@/lib/store";
 import { useEffect, useState } from "react";
 
 const viewComponents: Record<ViewName, React.ComponentType> = {
+  tutorial: Tutorial,
   overview: Overview,
   strategies: Strategies,
   "ai-optimizer": AiOptimizer,
