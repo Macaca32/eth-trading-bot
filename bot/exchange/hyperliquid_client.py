@@ -457,43 +457,73 @@ class HyperliquidClient:
             }
             bar = bar_map.get(timeframe, "1h")
 
-            # Use SDK historical OHLCV
-            if self._sdk_info:
-                hist_candles = await asyncio.to_thread(
-                    self._sdk_info.candles_snapshot, coin, bar, limit, end_time
-                )
-                if hist_candles:
-                    result = []
-                    for c in hist_candles:
-                        result.append(Candle(
-                            timestamp=int(c.get("t", 0)),
-                            open=float(c.get("o", 0)),
-                            high=float(c.get("h", 0)),
-                            low=float(c.get("l", 0)),
-                            close=float(c.get("c", 0)),
-                            volume=float(c.get("v", 0)),
-                        ))
-                    result.sort(key=lambda x: x.timestamp)
-                    return result
+            # Hyperliquid SDK caps at ~1440 candles per request.
+            # Paginate in chunks to fetch the full requested limit.
+            max_per_request = 1440
+            all_candles: list[Candle] = []
+            end = end_time
 
-            # Fallback: REST approach
-            payload = {
-                "type": "candleSnapshot",
-                "req": {"coin": coin, "interval": bar, "startTime": end_time or int(time.time() * 1000)},
-            }
-            data = await self._post("/info", payload)
-            candles: list[Candle] = []
-            for c in data if isinstance(data, list) else []:
-                candles.append(Candle(
-                    timestamp=int(c.get("t", 0)),
-                    open=float(c.get("o", 0)),
-                    high=float(c.get("h", 0)),
-                    low=float(c.get("l", 0)),
-                    close=float(c.get("c", 0)),
-                    volume=float(c.get("v", 0)),
-                ))
-            candles.sort(key=lambda x: x.timestamp)
-            return candles
+            while len(all_candles) < limit:
+                chunk_size = min(max_per_request, limit - len(all_candles))
+
+                if self._sdk_info:
+                    hist_candles = await asyncio.to_thread(
+                        self._sdk_info.candles_snapshot, coin, bar, chunk_size, end
+                    )
+                else:
+                    hist_candles = None
+
+                if not hist_candles:
+                    # Fallback: REST approach
+                    payload = {
+                        "type": "candleSnapshot",
+                        "req": {
+                            "coin": coin,
+                            "interval": bar,
+                            "startTime": end or int(time.time() * 1000),
+                        },
+                    }
+                    data = await self._post("/info", payload)
+                    raw = data if isinstance(data, list) else []
+                    hist_candles = raw
+
+                if not hist_candles:
+                    break  # No more data available
+
+                chunk = []
+                for c in hist_candles:
+                    ts = int(c.get("t", 0))
+                    if ts == 0:
+                        continue
+                    chunk.append(Candle(
+                        timestamp=ts,
+                        open=float(c.get("o", 0)),
+                        high=float(c.get("h", 0)),
+                        low=float(c.get("l", 0)),
+                        close=float(c.get("c", 0)),
+                        volume=float(c.get("v", 0)),
+                    ))
+
+                if not chunk:
+                    break
+
+                # Next request ends at the oldest candle of this batch
+                end = chunk[0].timestamp - 1
+                all_candles.extend(chunk)
+
+                # If we got fewer than requested, we've reached the beginning of available data
+                if len(chunk) < chunk_size:
+                    break
+
+            all_candles.sort(key=lambda x: x.timestamp)
+            # Deduplicate by timestamp (overlapping requests)
+            seen = set()
+            unique = []
+            for c in all_candles:
+                if c.timestamp not in seen:
+                    seen.add(c.timestamp)
+                    unique.append(c)
+            return unique
 
         except Exception as exc:
             logger.error("Error fetching OHLCV for {}: {}", coin, exc)

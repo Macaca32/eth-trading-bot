@@ -346,12 +346,25 @@ class TradingBot:
 
         logger.info("Running strategy optimization...")
         pair = self._config.strategy.default_pair
+
+        # Fetch more candles for optimization than the normal limit (need 90+ days)
+        opt_candle_limit = max(self._config.data.candle_limit, 5000)
         df = self._data_manager.get_candles_df(
-            pair, self._config.data.default_timeframe, self._config.data.candle_limit,
+            pair, self._config.data.default_timeframe, opt_candle_limit,
         )
 
         if df.empty:
             logger.error("No data available for optimization")
+            return
+
+        total_days = (df["timestamp"].iloc[-1] - df["timestamp"].iloc[0]) / (1000 * 86400)
+        min_days = self._config.optimization.train_window_days + self._config.optimization.validation_window_days
+        if total_days < min_days:
+            logger.warning(
+                "Only {} days of data available (need {} for walk-forward). "
+                "Consider letting the bot run longer to collect more history.",
+                int(total_days), min_days,
+            )
             return
 
         for cls in STRATEGY_CLASSES:

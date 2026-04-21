@@ -80,11 +80,11 @@ class RiskConfig:
 class DataConfig:
     """Data pipeline settings."""
     default_timeframe: str = "1h"
-    candle_limit: int = 500                     # Max candles to fetch per request
+    candle_limit: int = 5000                    # Max candles to fetch per request (~7mo at 1h)
     sqlite_db_path: str = "data/bot.db"
     ws_reconnect_delay_sec: float = 5.0
     ws_ping_interval_sec: float = 30.0
-    candles_retention_days: int = 90            # Purge candles older than N days
+    candles_retention_days: int = 120           # Purge candles older than N days
 
 
 @dataclass
